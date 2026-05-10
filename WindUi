@@ -2546,4 +2546,484 @@ function Speed_Library:SetAnimationSpeed(speed)
 end
 
 
+
+
+--// ============================================================
+--// DOCA V1 ULTRA ANIMATION + KEY SYSTEM PACK
+--// Added: animated key gate, loader, theme transitions,
+--// full hover/click animation scanner, particles, blur, shake/pop.
+--// ============================================================
+
+Speed_Library.Ultra = Speed_Library.Ultra or {}
+Speed_Library.Ultra.Connections = Speed_Library.Ultra.Connections or {}
+Speed_Library.Ultra.Objects = Speed_Library.Ultra.Objects or {}
+Speed_Library.Ultra.Flags = {
+  Blur = true,
+  Particles = true,
+  Hover = true,
+  Click = true,
+  Loader = true,
+  KeySystem = true,
+  SaveKey = true,
+}
+
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+
+local function getParentGui()
+  return RunService:IsStudio() and Player:WaitForChild("PlayerGui") or (gethui and gethui()) or (cloneref and cloneref(game:GetService("CoreGui"))) or game:GetService("CoreGui")
+end
+
+local function protectGui(gui)
+  pcall(function()
+    if syn and syn.protect_gui then syn.protect_gui(gui) end
+    if gethui then gui.Parent = gethui() end
+  end)
+end
+
+local function safeTween(obj, info, props)
+  if not obj or not obj.Parent then return nil end
+  local ok, tween = pcall(function()
+    return TweenService:Create(obj, info, props)
+  end)
+  if ok and tween then
+    tween:Play()
+    return tween
+  end
+  return nil
+end
+
+function Speed_Library.Ultra:SetFlag(name, value)
+  self.Flags[name] = value and true or false
+end
+
+function Speed_Library.Ultra:TrackConnection(conn)
+  table.insert(self.Connections, conn)
+  return conn
+end
+
+function Speed_Library.Ultra:TrackObject(obj)
+  table.insert(self.Objects, obj)
+  return obj
+end
+
+function Speed_Library.Ultra:Cleanup()
+  for _, c in ipairs(self.Connections) do pcall(function() c:Disconnect() end) end
+  for _, o in ipairs(self.Objects) do pcall(function() if o and o.Parent then o:Destroy() end end) end
+  self.Connections = {}
+  self.Objects = {}
+  pcall(function()
+    local blur = Lighting:FindFirstChild("DocaV1_UltraBlur")
+    if blur then blur:Destroy() end
+  end)
+end
+
+function Speed_Library.Ultra:Blur(enabled, size)
+  if not self.Flags.Blur then return end
+  local blur = Lighting:FindFirstChild("DocaV1_UltraBlur") or Instance.new("BlurEffect")
+  blur.Name = "DocaV1_UltraBlur"
+  blur.Parent = Lighting
+  blur.Size = enabled and 0 or (size or 14)
+  safeTween(blur, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = enabled and (size or 14) or 0})
+  if not enabled then
+    task.delay(0.3, function()
+      if blur and blur.Parent and blur.Size <= 1 then blur:Destroy() end
+    end)
+  end
+end
+
+function Speed_Library.Ultra:Pop(obj, scaleAmount)
+  if not obj or not obj.Parent then return end
+  scaleAmount = scaleAmount or 1.06
+  local scale = obj:FindFirstChild("DocaV1_UIScale") or Instance.new("UIScale")
+  scale.Name = "DocaV1_UIScale"
+  scale.Scale = 1
+  scale.Parent = obj
+  safeTween(scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = scaleAmount})
+  task.delay(0.08, function()
+    safeTween(scale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1})
+  end)
+end
+
+function Speed_Library.Ultra:Shake(obj, power, times)
+  if not obj or not obj.Parent then return end
+  power = power or 8
+  times = times or 5
+  local old = obj.Position
+  task.spawn(function()
+    for i = 1, times do
+      if not obj or not obj.Parent then break end
+      safeTween(obj, TweenInfo.new(0.035), {Position = old + UDim2.fromOffset((i % 2 == 0 and power or -power), 0)})
+      task.wait(0.035)
+    end
+    safeTween(obj, TweenInfo.new(0.08), {Position = old})
+  end)
+end
+
+function Speed_Library.Ultra:Glow(obj, color)
+  if not obj or not obj.Parent then return end
+  local stroke = obj:FindFirstChild("DocaV1_Glow") or Instance.new("UIStroke")
+  stroke.Name = "DocaV1_Glow"
+  stroke.Color = color or Custom.ColorRGB
+  stroke.Thickness = 1.6
+  stroke.Transparency = 0.55
+  stroke.Parent = obj
+  task.spawn(function()
+    while obj and obj.Parent and stroke and stroke.Parent and not Speed_Library.Unloaded do
+      safeTween(stroke, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.12, Thickness = 2.4})
+      task.wait(0.7)
+      safeTween(stroke, TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 0.65, Thickness = 1.2})
+      task.wait(0.7)
+    end
+  end)
+  return stroke
+end
+
+function Speed_Library.Ultra:Ripple(button, x, y, color)
+  if not self.Flags.Click then return end
+  if not button or not button.Parent then return end
+  button.ClipsDescendants = true
+  local circle = Instance.new("ImageLabel")
+  circle.Name = "DocaV1_UltraRipple"
+  circle.Image = "rbxassetid://106471194043211"
+  circle.ImageColor3 = color or Custom.ColorRGB
+  circle.ImageTransparency = 0.62
+  circle.BackgroundTransparency = 1
+  circle.ZIndex = (button.ZIndex or 1) + 30
+  circle.Parent = button
+  local px = (x or 0) - button.AbsolutePosition.X
+  local py = (y or 0) - button.AbsolutePosition.Y
+  local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2.2
+  circle.Position = UDim2.fromOffset(px, py)
+  circle.Size = UDim2.fromOffset(0, 0)
+  safeTween(circle, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    Size = UDim2.fromOffset(size, size),
+    Position = UDim2.fromOffset(px - size / 2, py - size / 2),
+    ImageTransparency = 1
+  })
+  task.delay(0.5, function() if circle then circle:Destroy() end end)
+end
+
+function Speed_Library.Ultra:AnimateGuiTree(root)
+  if not root then return end
+  for _, obj in ipairs(root:GetDescendants()) do
+    if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+      if self.Flags.Hover then
+        self:TrackConnection(obj.MouseEnter:Connect(function()
+          self:Pop(obj, 1.025)
+        end))
+        self:TrackConnection(obj.MouseLeave:Connect(function()
+          local scale = obj:FindFirstChild("DocaV1_UIScale")
+          if scale then safeTween(scale, TweenInfo.new(0.12), {Scale = 1}) end
+        end))
+      end
+      self:TrackConnection(obj.Activated:Connect(function()
+        self:Pop(obj, 0.96)
+        local mouse = Player:GetMouse()
+        self:Ripple(obj, mouse.X, mouse.Y)
+      end))
+    elseif obj:IsA("Frame") and (obj.Name == "Main" or obj.Name == "SectionReal" or obj.Name == "Toggle" or obj.Name == "Button" or obj.Name == "Slider") then
+      if not obj:FindFirstChild("DocaV1_Glow") then
+        self:Glow(obj, Custom.ColorRGB)
+      end
+    end
+  end
+end
+
+function Speed_Library.Ultra:FloatingParticles(parent, count)
+  if not self.Flags.Particles then return end
+  if not parent then return end
+  count = count or 18
+  local folder = Instance.new("Folder")
+  folder.Name = "DocaV1_FloatingParticles"
+  folder.Parent = parent
+  self:TrackObject(folder)
+  for i = 1, count do
+    local dot = Instance.new("Frame")
+    dot.Name = "Particle"
+    dot.BorderSizePixel = 0
+    dot.BackgroundColor3 = Custom.ColorRGB
+    dot.BackgroundTransparency = math.random(45, 78) / 100
+    dot.Size = UDim2.fromOffset(math.random(2, 5), math.random(2, 5))
+    dot.Position = UDim2.fromScale(math.random(), math.random())
+    dot.Parent = folder
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    task.spawn(function()
+      while dot and dot.Parent and not Speed_Library.Unloaded do
+        safeTween(dot, TweenInfo.new(math.random(20, 45) / 10, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+          Position = UDim2.fromScale(math.random(), math.random()),
+          BackgroundTransparency = math.random(45, 85) / 100
+        })
+        task.wait(math.random(20, 45) / 10)
+      end
+    end)
+  end
+  return folder
+end
+
+function Speed_Library.Ultra:LoadingScreen(config)
+  config = config or {}
+  if self.Flags.Loader == false then return end
+  local gui = Instance.new("ScreenGui")
+  gui.Name = "DocaV1_UltraLoader"
+  gui.ResetOnSpawn = false
+  gui.IgnoreGuiInset = true
+  gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+  protectGui(gui)
+  gui.Parent = getParentGui()
+  self:TrackObject(gui)
+
+  local bg = Instance.new("Frame")
+  bg.BackgroundColor3 = Color3.fromRGB(5,5,5)
+  bg.BackgroundTransparency = 1
+  bg.Size = UDim2.fromScale(1,1)
+  bg.Parent = gui
+
+  local card = Instance.new("Frame")
+  card.AnchorPoint = Vector2.new(0.5,0.5)
+  card.Position = UDim2.fromScale(0.5,0.5)
+  card.Size = UDim2.fromOffset(0,0)
+  card.BackgroundColor3 = Color3.fromRGB(12,12,12)
+  card.BorderSizePixel = 0
+  card.ClipsDescendants = true
+  card.Parent = bg
+  Instance.new("UICorner", card).CornerRadius = UDim.new(0,16)
+  self:Glow(card, Custom.ColorRGB)
+
+  local title = Instance.new("TextLabel")
+  title.BackgroundTransparency = 1
+  title.Text = config.Title or "Doca V1"
+  title.Font = Enum.Font.GothamBlack
+  title.TextSize = 28
+  title.TextColor3 = Color3.fromRGB(255,255,255)
+  title.Position = UDim2.fromOffset(0,28)
+  title.Size = UDim2.new(1,0,0,34)
+  title.Parent = card
+
+  local sub = Instance.new("TextLabel")
+  sub.BackgroundTransparency = 1
+  sub.Text = config.Subtitle or "Loading premium interface..."
+  sub.Font = Enum.Font.GothamBold
+  sub.TextSize = 13
+  sub.TextColor3 = Color3.fromRGB(155,155,155)
+  sub.Position = UDim2.fromOffset(0,65)
+  sub.Size = UDim2.new(1,0,0,20)
+  sub.Parent = card
+
+  local barBack = Instance.new("Frame")
+  barBack.AnchorPoint = Vector2.new(0.5,1)
+  barBack.Position = UDim2.new(0.5,0,1,-30)
+  barBack.Size = UDim2.new(1,-52,0,6)
+  barBack.BackgroundColor3 = Color3.fromRGB(35,35,35)
+  barBack.BorderSizePixel = 0
+  barBack.Parent = card
+  Instance.new("UICorner", barBack).CornerRadius = UDim.new(1,0)
+
+  local bar = Instance.new("Frame")
+  bar.Size = UDim2.fromScale(0,1)
+  bar.BackgroundColor3 = Custom.ColorRGB
+  bar.BorderSizePixel = 0
+  bar.Parent = barBack
+  Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+
+  self:FloatingParticles(card, 16)
+  self:Blur(true, 12)
+  safeTween(bg, TweenInfo.new(0.18), {BackgroundTransparency = 0.18})
+  safeTween(card, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(390,150)})
+  safeTween(bar, TweenInfo.new(config.Duration or 1.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.fromScale(1,1)})
+
+  task.delay((config.Duration or 1.45) + 0.2, function()
+    safeTween(card, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.fromOffset(0,0)})
+    safeTween(bg, TweenInfo.new(0.25), {BackgroundTransparency = 1})
+    self:Blur(false, 12)
+    task.wait(0.28)
+    if gui then gui:Destroy() end
+  end)
+  return gui
+end
+
+function Speed_Library.Ultra:KeySystem(config)
+  config = config or {}
+  local correctKey = tostring(config.Key or config.CorrectKey or "DocaOnTop")
+  local titleText = config.Title or "Doca V1 Key System"
+  local subtitleText = config.Subtitle or "Enter key to unlock the UI"
+  local fileName = config.FileName or "DocaV1_Key.txt"
+  local onSuccess = config.Callback or config.OnSuccess or function() end
+  local onFail = config.OnFail or function() end
+  local saveKey = config.SaveKey
+  if saveKey == nil then saveKey = true end
+
+  if saveKey and isfile and readfile then
+    local ok, saved = pcall(function() return readfile(fileName) end)
+    if ok and tostring(saved) == correctKey then
+      task.spawn(onSuccess)
+      return true
+    end
+  end
+
+  local gui = Instance.new("ScreenGui")
+  gui.Name = "DocaV1_KeySystem"
+  gui.ResetOnSpawn = false
+  gui.IgnoreGuiInset = true
+  gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+  protectGui(gui)
+  gui.Parent = getParentGui()
+  self:TrackObject(gui)
+
+  local bg = Instance.new("Frame")
+  bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+  bg.BackgroundTransparency = 1
+  bg.Size = UDim2.fromScale(1,1)
+  bg.Parent = gui
+
+  local card = Instance.new("Frame")
+  card.AnchorPoint = Vector2.new(0.5,0.5)
+  card.Position = UDim2.fromScale(0.5,0.5)
+  card.Size = UDim2.fromOffset(0,0)
+  card.BackgroundColor3 = Color3.fromRGB(13,13,13)
+  card.BorderSizePixel = 0
+  card.ClipsDescendants = true
+  card.Parent = bg
+  Instance.new("UICorner", card).CornerRadius = UDim.new(0,18)
+  self:Glow(card, Custom.ColorRGB)
+  self:FloatingParticles(card, 22)
+
+  local title = Instance.new("TextLabel")
+  title.BackgroundTransparency = 1
+  title.Text = titleText
+  title.Font = Enum.Font.GothamBlack
+  title.TextSize = 24
+  title.TextColor3 = Color3.fromRGB(255,255,255)
+  title.Position = UDim2.fromOffset(20,22)
+  title.Size = UDim2.new(1,-40,0,30)
+  title.Parent = card
+
+  local subtitle = Instance.new("TextLabel")
+  subtitle.BackgroundTransparency = 1
+  subtitle.Text = subtitleText
+  subtitle.Font = Enum.Font.GothamBold
+  subtitle.TextSize = 12
+  subtitle.TextColor3 = Color3.fromRGB(150,150,150)
+  subtitle.Position = UDim2.fromOffset(20,55)
+  subtitle.Size = UDim2.new(1,-40,0,22)
+  subtitle.Parent = card
+
+  local box = Instance.new("TextBox")
+  box.PlaceholderText = "Key here..."
+  box.Text = ""
+  box.ClearTextOnFocus = false
+  box.Font = Enum.Font.GothamBold
+  box.TextSize = 14
+  box.TextColor3 = Color3.fromRGB(255,255,255)
+  box.PlaceholderColor3 = Color3.fromRGB(95,95,95)
+  box.BackgroundColor3 = Color3.fromRGB(25,25,25)
+  box.BorderSizePixel = 0
+  box.Position = UDim2.fromOffset(24,94)
+  box.Size = UDim2.new(1,-48,0,42)
+  box.Parent = card
+  Instance.new("UICorner", box).CornerRadius = UDim.new(0,10)
+
+  local unlock = Instance.new("TextButton")
+  unlock.Text = "UNLOCK"
+  unlock.Font = Enum.Font.GothamBlack
+  unlock.TextSize = 14
+  unlock.TextColor3 = Color3.fromRGB(255,255,255)
+  unlock.BackgroundColor3 = Custom.ColorRGB
+  unlock.BorderSizePixel = 0
+  unlock.Position = UDim2.fromOffset(24,150)
+  unlock.Size = UDim2.new(0.5,-30,0,40)
+  unlock.Parent = card
+  Instance.new("UICorner", unlock).CornerRadius = UDim.new(0,10)
+
+  local getKey = Instance.new("TextButton")
+  getKey.Text = "GET KEY"
+  getKey.Font = Enum.Font.GothamBlack
+  getKey.TextSize = 14
+  getKey.TextColor3 = Color3.fromRGB(255,255,255)
+  getKey.BackgroundColor3 = Color3.fromRGB(32,32,32)
+  getKey.BorderSizePixel = 0
+  getKey.Position = UDim2.new(0.5,6,0,150)
+  getKey.Size = UDim2.new(0.5,-30,0,40)
+  getKey.Parent = card
+  Instance.new("UICorner", getKey).CornerRadius = UDim.new(0,10)
+
+  local status = Instance.new("TextLabel")
+  status.BackgroundTransparency = 1
+  status.Text = ""
+  status.Font = Enum.Font.GothamBold
+  status.TextSize = 12
+  status.TextColor3 = Color3.fromRGB(180,180,180)
+  status.Position = UDim2.fromOffset(24,202)
+  status.Size = UDim2.new(1,-48,0,18)
+  status.Parent = card
+
+  self:Blur(true, 15)
+  safeTween(bg, TweenInfo.new(0.2), {BackgroundTransparency = 0.25})
+  safeTween(card, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(430,238)})
+  self:AnimateGuiTree(gui)
+
+  local function closeAndSuccess()
+    status.Text = "Correct key. Loading..."
+    status.TextColor3 = Custom.ColorRGB
+    if saveKey and writefile then pcall(function() writefile(fileName, correctKey) end) end
+    safeTween(card, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.fromOffset(0,0)})
+    safeTween(bg, TweenInfo.new(0.28), {BackgroundTransparency = 1})
+    self:Blur(false, 15)
+    task.delay(0.3, function()
+      if gui then gui:Destroy() end
+      onSuccess()
+    end)
+  end
+
+  local function check()
+    self:Pop(unlock, 0.96)
+    if tostring(box.Text) == correctKey then
+      closeAndSuccess()
+    else
+      status.Text = "Wrong key. Try again."
+      status.TextColor3 = Color3.fromRGB(255,80,80)
+      self:Shake(card, 10, 6)
+      onFail(box.Text)
+    end
+  end
+
+  self:TrackConnection(unlock.Activated:Connect(check))
+  self:TrackConnection(box.FocusLost:Connect(function(enter)
+    if enter then check() end
+  end))
+  self:TrackConnection(getKey.Activated:Connect(function()
+    local text = config.KeyLink or config.CopyText or "DocaOnTop"
+    if setclipboard then pcall(function() setclipboard(text) end) end
+    status.Text = "Copied key/link."
+    status.TextColor3 = Color3.fromRGB(210,210,210)
+    self:Pop(getKey, 0.96)
+  end))
+
+  return false
+end
+
+function Speed_Library.Ultra:InstallToWindow(windowGui)
+  if not windowGui then return end
+  self:AnimateGuiTree(windowGui)
+  self:FloatingParticles(windowGui, 14)
+end
+
+-- Public shortcuts.
+function Speed_Library:CreateKeySystem(config)
+  return Speed_Library.Ultra:KeySystem(config)
+end
+
+function Speed_Library:ShowLoader(config)
+  return Speed_Library.Ultra:LoadingScreen(config)
+end
+
+function Speed_Library:InstallUltraAnimations(root)
+  return Speed_Library.Ultra:InstallToWindow(root)
+end
+
+function Speed_Library:UltraCleanup()
+  return Speed_Library.Ultra:Cleanup()
+end
+
+
 return Speed_Library
