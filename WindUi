@@ -3026,4 +3026,307 @@ function Speed_Library:UltraCleanup()
 end
 
 
+
+--// ============================================================
+--// DOCA V1 FINAL "ALL-IN" RAINBOW + EVERYTHING ANIMATED PACK
+--// Added for user request: real rainbow engine, RGB gradients,
+--// neon sweep, animated strokes, title RGB, button hover glow,
+--// live theme cycling, key UI rainbow mode, confetti burst,
+--// loading progress shine, and one-call installer.
+--// ============================================================
+
+Speed_Library.Rainbow = Speed_Library.Rainbow or {
+  Enabled = false,
+  Speed = 0.18,
+  Saturation = 0.9,
+  Value = 1,
+  Objects = {},
+  Gradients = {},
+  Connections = {},
+}
+
+local function _rainbowNow(offset)
+  offset = offset or 0
+  return Color3.fromHSV((os.clock() * Speed_Library.Rainbow.Speed + offset) % 1, Speed_Library.Rainbow.Saturation, Speed_Library.Rainbow.Value)
+end
+
+local function _safeAdd(list, obj, prop, offset)
+  if obj and obj.Parent then
+    table.insert(list, {Object = obj, Property = prop, Offset = offset or math.random()})
+  end
+end
+
+function Speed_Library:RainbowColor(offset)
+  return _rainbowNow(offset)
+end
+
+function Speed_Library:RegisterRainbowObject(obj, property, offset)
+  _safeAdd(Speed_Library.Rainbow.Objects, obj, property or "BackgroundColor3", offset)
+  return obj
+end
+
+function Speed_Library:RegisterRainbowGradient(gradient, offset)
+  if gradient and gradient.Parent then
+    table.insert(Speed_Library.Rainbow.Gradients, {Gradient = gradient, Offset = offset or math.random()})
+  end
+  return gradient
+end
+
+function Speed_Library:StartRainbow(config)
+  config = config or {}
+  Speed_Library.Rainbow.Enabled = true
+  Speed_Library.Rainbow.Speed = config.Speed or Speed_Library.Rainbow.Speed or 0.18
+  Speed_Library.Rainbow.Saturation = config.Saturation or 0.9
+  Speed_Library.Rainbow.Value = config.Value or 1
+
+  if Speed_Library.Rainbow._Connection then
+    Speed_Library.Rainbow._Connection:Disconnect()
+  end
+
+  Speed_Library.Rainbow._Connection = RunService.RenderStepped:Connect(function(dt)
+    local base = _rainbowNow(0)
+    Custom.ColorRGB = base
+
+    for i = #Speed_Library.Rainbow.Objects, 1, -1 do
+      local item = Speed_Library.Rainbow.Objects[i]
+      local obj = item.Object
+      if not obj or not obj.Parent then
+        table.remove(Speed_Library.Rainbow.Objects, i)
+      else
+        pcall(function()
+          obj[item.Property] = _rainbowNow(item.Offset)
+        end)
+      end
+    end
+
+    for i = #Speed_Library.Rainbow.Gradients, 1, -1 do
+      local item = Speed_Library.Rainbow.Gradients[i]
+      local g = item.Gradient
+      if not g or not g.Parent then
+        table.remove(Speed_Library.Rainbow.Gradients, i)
+      else
+        local o = item.Offset
+        pcall(function()
+          g.Rotation = (g.Rotation + dt * 85) % 360
+          g.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, _rainbowNow(o)),
+            ColorSequenceKeypoint.new(0.33, _rainbowNow(o + 0.18)),
+            ColorSequenceKeypoint.new(0.66, _rainbowNow(o + 0.36)),
+            ColorSequenceKeypoint.new(1, _rainbowNow(o + 0.54)),
+          })
+        end)
+      end
+    end
+  end)
+
+  if Speed_Library.Ultra and Speed_Library.Ultra.TrackConnection then
+    Speed_Library.Ultra:TrackConnection(Speed_Library.Rainbow._Connection)
+  end
+end
+
+function Speed_Library:StopRainbow()
+  Speed_Library.Rainbow.Enabled = false
+  if Speed_Library.Rainbow._Connection then
+    Speed_Library.Rainbow._Connection:Disconnect()
+    Speed_Library.Rainbow._Connection = nil
+  end
+end
+
+function Speed_Library:AddRainbowStroke(parent, thickness)
+  local stroke = Instance.new("UIStroke")
+  stroke.Thickness = thickness or 1.8
+  stroke.Transparency = 0.05
+  stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+  stroke.Parent = parent
+  self:RegisterRainbowObject(stroke, "Color")
+  return stroke
+end
+
+function Speed_Library:AddRainbowGradient(parent, rotation)
+  local grad = Instance.new("UIGradient")
+  grad.Rotation = rotation or 0
+  grad.Parent = parent
+  self:RegisterRainbowGradient(grad)
+  return grad
+end
+
+function Speed_Library:AddNeonSweep(parent)
+  if not parent then return end
+  local sweep = Instance.new("Frame")
+  sweep.Name = "DocaV1_NeonSweep"
+  sweep.AnchorPoint = Vector2.new(0.5, 0.5)
+  sweep.BackgroundColor3 = Color3.fromRGB(255,255,255)
+  sweep.BackgroundTransparency = 0.8
+  sweep.BorderSizePixel = 0
+  sweep.Rotation = 18
+  sweep.Size = UDim2.new(0, 42, 1.8, 0)
+  sweep.Position = UDim2.new(-0.25, 0, 0.5, 0)
+  sweep.ZIndex = (parent.ZIndex or 1) + 5
+  sweep.Parent = parent
+  Instance.new("UICorner", sweep).CornerRadius = UDim.new(1, 0)
+  self:AddRainbowGradient(sweep, 90)
+  local function run()
+    if not sweep or not sweep.Parent then return end
+    sweep.Position = UDim2.new(-0.25, 0, 0.5, 0)
+    local tw = TweenService:Create(sweep, TweenInfo.new(1.35, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut), {Position = UDim2.new(1.25, 0, 0.5, 0)})
+    tw:Play()
+    tw.Completed:Once(function()
+      task.delay(1.2, run)
+    end)
+  end
+  task.delay(math.random() * 0.7, run)
+  return sweep
+end
+
+function Speed_Library:AddBreathingGlow(parent, minT, maxT)
+  local stroke = self:AddRainbowStroke(parent, 2)
+  minT = minT or 0.12
+  maxT = maxT or 0.72
+  local alive = true
+  local function breathe(on)
+    if not alive or not stroke or not stroke.Parent then alive = false return end
+    local tw = TweenService:Create(stroke, TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = on and minT or maxT})
+    tw:Play()
+    tw.Completed:Once(function() breathe(not on) end)
+  end
+  breathe(true)
+  return stroke
+end
+
+function Speed_Library:AnimateTextRainbow(label)
+  if not label then return end
+  self:RegisterRainbowObject(label, "TextColor3")
+  local stroke = label:FindFirstChildOfClass("UIStroke") or Instance.new("UIStroke")
+  stroke.Thickness = 0.45
+  stroke.Transparency = 0.35
+  stroke.Parent = label
+  self:RegisterRainbowObject(stroke, "Color", 0.35)
+end
+
+function Speed_Library:ConfettiBurst(parent, amount)
+  amount = amount or 34
+  if not parent then return end
+  for i = 1, amount do
+    local bit = Instance.new("Frame")
+    bit.Name = "DocaV1_RGB_Confetti"
+    bit.BorderSizePixel = 0
+    bit.BackgroundColor3 = _rainbowNow(i / amount)
+    bit.Size = UDim2.fromOffset(math.random(4, 8), math.random(4, 10))
+    bit.AnchorPoint = Vector2.new(0.5,0.5)
+    bit.Position = UDim2.new(0.5, 0, 0.5, 0)
+    bit.Rotation = math.random(0, 360)
+    bit.ZIndex = 999
+    bit.Parent = parent
+    local x = math.random(-180, 180)
+    local y = math.random(-130, 130)
+    TweenService:Create(bit, TweenInfo.new(math.random(45, 85) / 100, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+      Position = UDim2.new(0.5, x, 0.5, y),
+      Rotation = bit.Rotation + math.random(120, 420),
+      BackgroundTransparency = 1,
+    }):Play()
+    task.delay(0.95, function() if bit then bit:Destroy() end end)
+  end
+end
+
+function Speed_Library:MakeEverythingRainbow(root)
+  if not root then return end
+  self:StartRainbow({Speed = 0.22, Saturation = 0.95, Value = 1})
+  for _, obj in ipairs(root:GetDescendants()) do
+    if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+      if obj.Text ~= "" then self:AnimateTextRainbow(obj) end
+    elseif obj:IsA("Frame") or obj:IsA("ImageButton") then
+      if obj.BackgroundTransparency < 0.98 then
+        self:AddBreathingGlow(obj, 0.18, 0.82)
+        if obj.AbsoluteSize.X > 60 and obj.AbsoluteSize.Y > 24 then
+          pcall(function() obj.ClipsDescendants = true end)
+          self:AddNeonSweep(obj)
+        end
+      end
+    elseif obj:IsA("UIStroke") then
+      self:RegisterRainbowObject(obj, "Color")
+    elseif obj:IsA("UIGradient") then
+      self:RegisterRainbowGradient(obj)
+    end
+  end
+end
+
+function Speed_Library:InstallEverything(root, config)
+  config = config or {}
+  self:StartRainbow(config.Rainbow or {Speed = 0.22})
+  if root then
+    if Speed_Library.Ultra and Speed_Library.Ultra.AnimateGuiTree then
+      Speed_Library.Ultra:AnimateGuiTree(root)
+      Speed_Library.Ultra:FloatingParticles(root, config.Particles or 26)
+    end
+    self:MakeEverythingRainbow(root)
+    self:ConfettiBurst(root, 28)
+  end
+end
+
+-- Rainbow key system shortcut: same key system, but with RGB visuals enabled immediately.
+function Speed_Library:CreateRainbowKeySystem(config)
+  config = config or {}
+  config.Title = config.Title or "DOCA V1 RGB KEY"
+  config.Subtitle = config.Subtitle or "RAINBOW ACCESS"
+  self:StartRainbow({Speed = config.RainbowSpeed or 0.24})
+  return self:CreateKeySystem(config)
+end
+
+-- Wrap CreateWindow so new windows can auto-install all effects by passing:
+-- {Rainbow = true, EverythingAnimated = true, Confetti = true}
+local _Doca_OriginalCreateWindow = Speed_Library.CreateWindow
+function Speed_Library:CreateWindow(Config)
+  Config = Config or {}
+  local tabs = _Doca_OriginalCreateWindow(self, Config)
+  task.defer(function()
+    local parent = RunService:IsStudio() and Player.PlayerGui or (gethui and gethui() or game:GetService("CoreGui"))
+    local latestGui
+    for _, gui in ipairs(parent:GetChildren()) do
+      if gui:IsA("ScreenGui") and gui:FindFirstChild("DropShadowHolder", true) then
+        latestGui = gui
+      end
+    end
+    if latestGui then
+      if Config.Rainbow or Config.RGB or Config.Theme == "Rainbow" then
+        self:MakeEverythingRainbow(latestGui)
+      end
+      if Config.EverythingAnimated ~= false then
+        if Speed_Library.Ultra and Speed_Library.Ultra.AnimateGuiTree then
+          Speed_Library.Ultra:AnimateGuiTree(latestGui)
+          Speed_Library.Ultra:FloatingParticles(latestGui, Config.Particles or 18)
+        end
+        for _, obj in ipairs(latestGui:GetDescendants()) do
+          if (obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton")) and obj.AbsoluteSize.X > 80 and obj.AbsoluteSize.Y > 25 then
+            pcall(function() obj.ClipsDescendants = true end)
+          end
+        end
+      end
+      if Config.Confetti then
+        self:ConfettiBurst(latestGui, 40)
+      end
+    end
+  end)
+  return tabs
+end
+
+Speed_Library.ExampleFullRGB = [[
+local Library = loadstring(game:HttpGet("YOUR_RAW_LINK"))()
+Library:CreateRainbowKeySystem({
+  Key = "DocaOnTop",
+  SaveKey = true,
+  KeyLink = "DocaOnTop",
+  OnSuccess = function()
+    local Window = Library:CreateWindow({
+      Title = "Doca V1",
+      Description = "RGB Ultra",
+      Rainbow = true,
+      EverythingAnimated = true,
+      Confetti = true,
+      Particles = 30,
+      SizeUi = UDim2.fromOffset(570, 340)
+    })
+  end
+})
+]]
+
 return Speed_Library
