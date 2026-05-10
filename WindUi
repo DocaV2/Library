@@ -3329,4 +3329,519 @@ Library:CreateRainbowKeySystem({
 })
 ]]
 
+
+--// ================================================================
+--// DOCA V1 PHOTO-MATCH ULTIMATE PACK
+--// Adds the visual systems from the generated showcase image:
+--// Key panel, get-key panel, loader card, dashboard, settings,
+--// themes/rainbow controls, notifications, shop/stat/teleport/rebirth
+--// demo panels, effect previews, bottom bar, live RGB borders.
+--// This is UI-only. Connect your own callbacks to buttons/toggles.
+--// ================================================================
+
+Speed_Library.PhotoPack = Speed_Library.PhotoPack or {}
+Speed_Library.PhotoPack.Version = "PhotoMatch Ultimate 1.0"
+Speed_Library.PhotoPack.Connections = Speed_Library.PhotoPack.Connections or {}
+Speed_Library.PhotoPack.Theme = {
+  Accent = Color3.fromRGB(180, 0, 255),
+  Accent2 = Color3.fromRGB(0, 180, 255),
+  Red = Color3.fromRGB(255, 32, 48),
+  Green = Color3.fromRGB(0, 230, 90),
+  Blue = Color3.fromRGB(0, 145, 255),
+  Yellow = Color3.fromRGB(255, 194, 10),
+  Pink = Color3.fromRGB(255, 0, 190),
+  Background = Color3.fromRGB(5, 6, 12),
+  Card = Color3.fromRGB(12, 12, 20),
+  Card2 = Color3.fromRGB(18, 18, 28),
+  Stroke = Color3.fromRGB(54, 58, 76),
+  Text = Color3.fromRGB(245, 245, 255),
+  Muted = Color3.fromRGB(160, 164, 180)
+}
+
+local function _ppParent()
+  local ok, hui = pcall(function()
+    if gethui then return gethui() end
+  end)
+  if ok and hui then return hui end
+  local ok2, core = pcall(function()
+    if cloneref then return cloneref(game:GetService("CoreGui")) end
+  end)
+  if ok2 and core then return core end
+  return RunService:IsStudio() and Player:WaitForChild("PlayerGui") or game:GetService("CoreGui")
+end
+
+local function _ppCreate(className, props, parent)
+  local obj = Instance.new(className)
+  for k, v in pairs(props or {}) do
+    if k ~= "Parent" then
+      pcall(function() obj[k] = v end)
+    end
+  end
+  obj.Parent = parent or props.Parent
+  return obj
+end
+
+local function _ppCorner(parent, radius)
+  local c = Instance.new("UICorner")
+  c.CornerRadius = UDim.new(0, radius or 10)
+  c.Parent = parent
+  return c
+end
+
+local function _ppStroke(parent, color, thickness, transparency)
+  local s = Instance.new("UIStroke")
+  s.Color = color or Speed_Library.PhotoPack.Theme.Stroke
+  s.Thickness = thickness or 1
+  s.Transparency = transparency or 0.25
+  s.Parent = parent
+  return s
+end
+
+local function _ppGradient(parent, colors, rotation)
+  local g = Instance.new("UIGradient")
+  g.Rotation = rotation or 0
+  g.Color = ColorSequence.new(colors or {
+    ColorSequenceKeypoint.new(0, Speed_Library.PhotoPack.Theme.Accent),
+    ColorSequenceKeypoint.new(1, Speed_Library.PhotoPack.Theme.Accent2)
+  })
+  g.Parent = parent
+  return g
+end
+
+local function _ppLabel(parent, text, size, bold, color)
+  return _ppCreate("TextLabel", {
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham,
+    Text = text or "",
+    TextColor3 = color or Speed_Library.PhotoPack.Theme.Text,
+    TextSize = size or 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    TextTruncate = Enum.TextTruncate.AtEnd
+  }, parent)
+end
+
+local function _ppButton(parent, text, color, callback)
+  local b = _ppCreate("TextButton", {
+    AutoButtonColor = false,
+    BackgroundColor3 = color or Speed_Library.PhotoPack.Theme.Card2,
+    BorderSizePixel = 0,
+    Font = Enum.Font.GothamBold,
+    Text = text or "Button",
+    TextColor3 = Color3.fromRGB(255,255,255),
+    TextSize = 12,
+    ClipsDescendants = true
+  }, parent)
+  _ppCorner(b, 7)
+  _ppStroke(b, color or Speed_Library.PhotoPack.Theme.Stroke, 1, 0.25)
+  b.MouseEnter:Connect(function()
+    TweenService:Create(b, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {BackgroundTransparency = 0.08, Size = b.Size + UDim2.fromOffset(2, 1)}):Play()
+  end)
+  b.MouseLeave:Connect(function()
+    TweenService:Create(b, TweenInfo.new(0.16, Enum.EasingStyle.Quad), {BackgroundTransparency = 0, Size = b.Size - UDim2.fromOffset(2, 1)}):Play()
+  end)
+  b.Activated:Connect(function()
+    if Speed_Library.Ultra and Speed_Library.Ultra.Ripple then
+      local mouse = Player:GetMouse()
+      Speed_Library.Ultra:Ripple(b, mouse.X, mouse.Y, Color3.fromRGB(255,255,255))
+    end
+    TweenService:Create(b, TweenInfo.new(0.08, Enum.EasingStyle.Back), {Rotation = 1}):Play()
+    task.delay(0.08, function() if b.Parent then TweenService:Create(b, TweenInfo.new(0.12), {Rotation = 0}):Play() end end)
+    if callback then task.spawn(callback) end
+  end)
+  return b
+end
+
+local function _ppCard(parent, name, pos, size, accent)
+  local f = _ppCreate("Frame", {
+    Name = name or "Card",
+    BackgroundColor3 = Speed_Library.PhotoPack.Theme.Card,
+    BorderSizePixel = 0,
+    Position = pos or UDim2.fromOffset(0, 0),
+    Size = size or UDim2.fromOffset(220, 140),
+    ClipsDescendants = true
+  }, parent)
+  _ppCorner(f, 10)
+  _ppStroke(f, accent or Speed_Library.PhotoPack.Theme.Stroke, 1, 0.15)
+  return f
+end
+
+local function _ppHeader(parent, title, icon, accent)
+  local top = _ppCreate("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, -18, 0, 32), Position = UDim2.fromOffset(9, 6)}, parent)
+  local lbl = _ppLabel(top, (icon and (icon .. "  ") or "") .. title, 14, true, accent or Speed_Library.PhotoPack.Theme.Text)
+  lbl.Size = UDim2.new(1, -70, 1, 0)
+  local min = _ppLabel(top, "–", 18, false, Speed_Library.PhotoPack.Theme.Muted)
+  min.AnchorPoint = Vector2.new(1, 0)
+  min.Position = UDim2.new(1, -28, 0, 0)
+  min.Size = UDim2.fromOffset(24, 24)
+  min.TextXAlignment = Enum.TextXAlignment.Center
+  local close = _ppLabel(top, "×", 18, false, Speed_Library.PhotoPack.Theme.Text)
+  close.AnchorPoint = Vector2.new(1, 0)
+  close.Position = UDim2.new(1, 0, 0, 0)
+  close.Size = UDim2.fromOffset(24, 24)
+  close.TextXAlignment = Enum.TextXAlignment.Center
+  return top
+end
+
+function Speed_Library.PhotoPack:Track(conn)
+  table.insert(self.Connections, conn)
+  return conn
+end
+
+function Speed_Library.PhotoPack:Cleanup()
+  for _, c in ipairs(self.Connections) do pcall(function() c:Disconnect() end) end
+  table.clear(self.Connections)
+end
+
+function Speed_Library.PhotoPack:RainbowBorder(frame, thickness)
+  local stroke = frame:FindFirstChild("PhotoRainbowStroke") or Instance.new("UIStroke")
+  stroke.Name = "PhotoRainbowStroke"
+  stroke.Thickness = thickness or 1.5
+  stroke.Transparency = 0
+  stroke.Parent = frame
+  if Speed_Library.RegisterRainbowObject then Speed_Library:RegisterRainbowObject(stroke, "Color", math.random()) end
+  return stroke
+end
+
+function Speed_Library.PhotoPack:AnimatedGradient(frame, rotation)
+  local g = frame:FindFirstChild("PhotoRGBGradient") or _ppGradient(frame, {
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 70)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 220, 0)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 230, 90)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(0, 170, 255)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(190, 0, 255))
+  }, rotation or 0)
+  g.Name = "PhotoRGBGradient"
+  if Speed_Library.RegisterRainbowGradient then Speed_Library:RegisterRainbowGradient(g, math.random()) end
+  return g
+end
+
+function Speed_Library.PhotoPack:Particles(parent, amount)
+  amount = amount or 30
+  local holder = _ppCreate("Folder", {Name = "PhotoParticles"}, parent)
+  for i = 1, amount do
+    local p = _ppCreate("Frame", {
+      BackgroundColor3 = Color3.fromHSV(i / amount, 0.85, 1),
+      BackgroundTransparency = math.random(20, 55) / 100,
+      BorderSizePixel = 0,
+      Position = UDim2.new(math.random(), 0, math.random(), 0),
+      Size = UDim2.fromOffset(math.random(2, 5), math.random(2, 5)),
+      ZIndex = 50
+    }, holder)
+    _ppCorner(p, 99)
+    local function float()
+      if not p.Parent then return end
+      TweenService:Create(p, TweenInfo.new(math.random(30, 70) / 10, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+        Position = UDim2.new(math.random(), 0, math.random(), 0),
+        BackgroundColor3 = Color3.fromHSV(math.random(), 0.85, 1),
+        BackgroundTransparency = math.random(15, 70) / 100
+      }):Play()
+      task.delay(math.random(30, 70) / 10, float)
+    end
+    task.delay(math.random(), float)
+  end
+  return holder
+end
+
+function Speed_Library.PhotoPack:NeonPreview(parent, title, kind)
+  local card = _ppCard(parent, "Preview_" .. tostring(kind), UDim2.fromOffset(0,0), UDim2.fromOffset(160, 90), Color3.fromRGB(80,80,100))
+  local t = _ppLabel(card, title, 11, true, Color3.fromRGB(255,255,255))
+  t.Position = UDim2.fromOffset(12, 7)
+  t.Size = UDim2.new(1, -24, 0, 18)
+  if kind == "border" then
+    local box = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(8,8,15), BorderSizePixel = 0, Position = UDim2.fromOffset(25, 34), Size = UDim2.fromOffset(110, 38)}, card)
+    _ppCorner(box, 7); self:RainbowBorder(box, 2.5)
+  elseif kind == "glow" then
+    local box = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(35,5,10), BorderSizePixel = 0, Position = UDim2.fromOffset(25, 34), Size = UDim2.fromOffset(110, 38)}, card)
+    _ppCorner(box, 7); _ppStroke(box, Color3.fromRGB(255, 30, 30), 2.5, 0)
+  elseif kind == "particles" then
+    self:Particles(card, 16)
+  elseif kind == "ripple" then
+    local circle = _ppCreate("Frame", {AnchorPoint = Vector2.new(.5,.5), Position = UDim2.new(.5,0,.58,0), Size = UDim2.fromOffset(18,18), BackgroundColor3 = Color3.fromRGB(160,0,255), BackgroundTransparency = .25, BorderSizePixel=0}, card)
+    _ppCorner(circle, 99)
+    local function pulse()
+      if not circle.Parent then return end
+      circle.Size = UDim2.fromOffset(10,10); circle.BackgroundTransparency=.2
+      TweenService:Create(circle, TweenInfo.new(1.0, Enum.EasingStyle.Quad), {Size=UDim2.fromOffset(90,45), BackgroundTransparency=1}):Play()
+      task.delay(1.1, pulse)
+    end
+    pulse()
+  else
+    local box = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel = 0, Position = UDim2.fromOffset(25, 34), Size = UDim2.fromOffset(110, 38)}, card)
+    _ppCorner(box, 7); self:AnimatedGradient(box, 0)
+  end
+  return card
+end
+
+function Speed_Library.PhotoPack:ToggleRow(parent, title, default, accent)
+  local row = _ppCreate("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 34)}, parent)
+  local txt = _ppLabel(row, title, 12, false, Speed_Library.PhotoPack.Theme.Text)
+  txt.Position = UDim2.fromOffset(0,0); txt.Size = UDim2.new(1, -58, 1, 0)
+  local bg = _ppCreate("Frame", {AnchorPoint = Vector2.new(1,.5), BackgroundColor3 = default and (accent or Speed_Library.PhotoPack.Theme.Green) or Color3.fromRGB(55,55,65), BorderSizePixel=0, Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(38,20)}, row)
+  _ppCorner(bg, 99)
+  local knob = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(255,255,255), BorderSizePixel=0, Position= default and UDim2.fromOffset(19,2) or UDim2.fromOffset(2,2), Size=UDim2.fromOffset(16,16)}, bg)
+  _ppCorner(knob, 99)
+  local value = default and true or false
+  local click = _ppCreate("TextButton", {Text="", BackgroundTransparency=1, Size=UDim2.new(1,0,1,0)}, row)
+  click.Activated:Connect(function()
+    value = not value
+    TweenService:Create(bg, TweenInfo.new(.18, Enum.EasingStyle.Quad), {BackgroundColor3 = value and (accent or Speed_Library.PhotoPack.Theme.Green) or Color3.fromRGB(55,55,65)}):Play()
+    TweenService:Create(knob, TweenInfo.new(.18, Enum.EasingStyle.Back), {Position = value and UDim2.fromOffset(19,2) or UDim2.fromOffset(2,2)}):Play()
+  end)
+  return row
+end
+
+function Speed_Library.PhotoPack:SliderRow(parent, title, value, accent)
+  local row = _ppCreate("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40)}, parent)
+  local txt = _ppLabel(row, title, 12, false, Speed_Library.PhotoPack.Theme.Text)
+  txt.Size = UDim2.new(1, -35, 0, 16)
+  local val = _ppLabel(row, tostring(value or 5), 12, true, Speed_Library.PhotoPack.Theme.Text)
+  val.AnchorPoint = Vector2.new(1,0); val.Position = UDim2.new(1,0,0,0); val.Size = UDim2.fromOffset(30,16); val.TextXAlignment = Enum.TextXAlignment.Right
+  local bar = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(45,45,58), BorderSizePixel=0, Position=UDim2.fromOffset(0,25), Size=UDim2.new(1,0,0,4)}, row)
+  _ppCorner(bar, 99)
+  local fill = _ppCreate("Frame", {BackgroundColor3 = accent or Speed_Library.PhotoPack.Theme.Pink, BorderSizePixel=0, Size=UDim2.new(math.clamp((value or 5)/10,0,1),0,1,0)}, bar)
+  _ppCorner(fill, 99); self:AnimatedGradient(fill, 0)
+  return row
+end
+
+function Speed_Library.PhotoPack:MainDashboard(parent)
+  local main = _ppCard(parent, "MainDashboard", UDim2.fromOffset(410, 10), UDim2.fromOffset(595, 390), Color3.fromRGB(0, 210, 255))
+  self:RainbowBorder(main, 1.2)
+  _ppHeader(main, "Doca V1", "◈", Color3.fromRGB(210, 210, 255))
+
+  local nav = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(9,9,16), BorderSizePixel=0, Position=UDim2.fromOffset(0,44), Size=UDim2.fromOffset(134,346)}, main)
+  _ppStroke(nav, Color3.fromRGB(65,45,100), 1, .55)
+  local navItems = {"⌂  Home", "☠  Main", "♙  Killer", "🛒  Shop", "↻  Rebirth", "✈  Teleport", "▥  Stat", "⚙  Settings"}
+  for i, item in ipairs(navItems) do
+    local b = _ppButton(nav, item, i == 1 and Color3.fromRGB(90,35,210) or Color3.fromRGB(14,14,24))
+    b.Position = UDim2.fromOffset(16, 16 + (i-1)*35)
+    b.Size = UDim2.fromOffset(102, 28)
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.TextSize = 12
+  end
+
+  local banner = _ppCreate("Frame", {BackgroundColor3 = Color3.fromRGB(16,12,32), BorderSizePixel=0, Position=UDim2.fromOffset(154, 58), Size=UDim2.fromOffset(420, 76), ClipsDescendants=true}, main)
+  _ppCorner(banner, 10); self:RainbowBorder(banner, 1)
+  self:AnimatedGradient(banner, 0)
+  banner.BackgroundTransparency = .25
+  local welcome = _ppLabel(banner, "Welcome back,", 11, false, Color3.fromRGB(210,210,220)); welcome.Position=UDim2.fromOffset(70,14); welcome.Size=UDim2.fromOffset(220,16)
+  local user = _ppLabel(banner, "Doca User", 18, true, Color3.fromRGB(255,255,255)); user.Position=UDim2.fromOffset(70,31); user.Size=UDim2.fromOffset(220,28)
+  local badge = _ppButton(banner, "Premium", Color3.fromRGB(255,160,0)); badge.Position=UDim2.fromOffset(180,36); badge.Size=UDim2.fromOffset(76,23)
+  local avatar = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(25,5,35), BorderSizePixel=0, Position=UDim2.fromOffset(18,17), Size=UDim2.fromOffset(42,42)}, banner)
+  _ppCorner(avatar, 8); self:RainbowBorder(avatar, 1.2)
+  local avtxt = _ppLabel(avatar, "D", 24, true, Color3.fromRGB(255,60,90)); avtxt.Size=UDim2.new(1,0,1,0); avtxt.TextXAlignment=Enum.TextXAlignment.Center
+  self:Particles(banner, 14)
+
+  local quick = _ppLabel(main, "Quick Actions", 12, true, Speed_Library.PhotoPack.Theme.Text)
+  quick.Position = UDim2.fromOffset(154, 146); quick.Size = UDim2.fromOffset(200,20)
+  local actions = {{"☠  Kill All", Speed_Library.PhotoPack.Theme.Red}, {"Ω  Teleports", Speed_Library.PhotoPack.Theme.Accent}, {"☄  Shop", Speed_Library.PhotoPack.Theme.Blue}, {"↻  Rebirth", Speed_Library.PhotoPack.Theme.Green}}
+  for i, a in ipairs(actions) do
+    local b = _ppButton(main, a[1], a[2])
+    b.Position = UDim2.fromOffset(154 + (i-1)*104, 172)
+    b.Size = UDim2.fromOffset(94, 36)
+  end
+
+  local status = _ppCard(main, "StatusBox", UDim2.fromOffset(154,226), UDim2.fromOffset(205,108), Color3.fromRGB(40,40,60))
+  _ppLabel(status, "Status", 12, true).Position = UDim2.fromOffset(12,8)
+  local lines = {{"Username:", "Doca User"}, {"Role:", "Premium"}, {"Ping:", "68ms"}, {"Time:", "12:34:56"}}
+  for i, l in ipairs(lines) do
+    local a = _ppLabel(status, l[1], 11, false, Color3.fromRGB(230,230,240)); a.Position=UDim2.fromOffset(12, 30+i*16-16); a.Size=UDim2.fromOffset(80,16)
+    local b = _ppLabel(status, l[2], 11, true, i==2 and Speed_Library.PhotoPack.Theme.Red or i==3 and Speed_Library.PhotoPack.Theme.Green or Speed_Library.PhotoPack.Theme.Text); b.Position=UDim2.fromOffset(100, 30+i*16-16); b.Size=UDim2.fromOffset(80,16); b.TextXAlignment=Enum.TextXAlignment.Right
+  end
+  local keybox = _ppCard(main, "KeyBox", UDim2.fromOffset(374,226), UDim2.fromOffset(200,108), Color3.fromRGB(40,40,60))
+  _ppLabel(keybox, "Toggle Key", 12, true).Position = UDim2.fromOffset(12,8)
+  _ppLabel(keybox, "🔒  RightShift", 16, true).Position = UDim2.fromOffset(12,36)
+  local change = _ppButton(keybox, "Change", Color3.fromRGB(25,25,35)); change.Position=UDim2.fromOffset(115,34); change.Size=UDim2.fromOffset(70,28)
+  _ppLabel(keybox, "✓ Enabled", 13, true, Speed_Library.PhotoPack.Theme.Green).Position = UDim2.fromOffset(12,75)
+  return main
+end
+
+function Speed_Library.PhotoPack:KeyAndLoader(parent)
+  local key = _ppCard(parent, "KeySystemPanel", UDim2.fromOffset(10,10), UDim2.fromOffset(225,320), Color3.fromRGB(255,0,230))
+  self:RainbowBorder(key, 1.2); self:Particles(key, 18)
+  _ppHeader(key, "KEY SYSTEM", "🔒", Color3.fromRGB(255, 220, 80))
+  local lock = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(20,10,35), BorderSizePixel=0, AnchorPoint=Vector2.new(.5,0), Position=UDim2.new(.5,0,0,65), Size=UDim2.fromOffset(92,92)}, key)
+  _ppCorner(lock, 99); self:RainbowBorder(lock, 4)
+  local icon = _ppLabel(lock, "🔐", 34, true); icon.Size=UDim2.new(1,0,1,0); icon.TextXAlignment=Enum.TextXAlignment.Center
+  local info = _ppLabel(key, "Enter your key to continue", 11, false); info.Position=UDim2.fromOffset(38,170); info.Size=UDim2.fromOffset(160,18); info.TextXAlignment=Enum.TextXAlignment.Center
+  local box = _ppCreate("TextBox", {BackgroundColor3=Color3.fromRGB(11,12,22), BorderSizePixel=0, PlaceholderText="Enter your key...", Text="", Font=Enum.Font.Gotham, TextSize=12, TextColor3=Color3.fromRGB(255,255,255), PlaceholderColor3=Color3.fromRGB(145,145,160), Position=UDim2.fromOffset(24,200), Size=UDim2.fromOffset(178,30)}, key)
+  _ppCorner(box,6); _ppStroke(box, Color3.fromRGB(0,200,255),1,.45)
+  local verify = _ppButton(key, "Verify Key", Color3.fromRGB(100,0,255)); verify.Position=UDim2.fromOffset(24,240); verify.Size=UDim2.fromOffset(178,32); self:AnimatedGradient(verify, 0)
+  local get = _ppButton(key, "Get Key", Color3.fromRGB(24,18,34)); get.Position=UDim2.fromOffset(24,282); get.Size=UDim2.fromOffset(178,28)
+
+  local loader = _ppCard(parent, "LoaderPanel", UDim2.fromOffset(245,10), UDim2.fromOffset(150,320), Color3.fromRGB(80,0,255))
+  self:RainbowBorder(loader, 1.2); self:Particles(loader, 12)
+  _ppHeader(loader, "LOADING...", "☯", Color3.fromRGB(180,80,255))
+  local circle = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(20,15,35), BorderSizePixel=0, AnchorPoint=Vector2.new(.5,0), Position=UDim2.new(.5,0,0,80), Size=UDim2.fromOffset(85,85)}, loader)
+  _ppCorner(circle,99); self:RainbowBorder(circle, 6)
+  local percent = _ppLabel(circle, "85%", 20, true); percent.Size=UDim2.new(1,0,1,0); percent.TextXAlignment=Enum.TextXAlignment.Center
+  local loadTxt = _ppLabel(loader, "Loading Doca V1...", 11, false); loadTxt.Position=UDim2.fromOffset(22,185); loadTxt.Size=UDim2.fromOffset(110,20); loadTxt.TextXAlignment=Enum.TextXAlignment.Center
+  local bar = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(45,45,65), BorderSizePixel=0, Position=UDim2.fromOffset(20,218), Size=UDim2.fromOffset(110,6)}, loader)
+  _ppCorner(bar,99)
+  local fill = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(180,0,255), BorderSizePixel=0, Size=UDim2.new(.75,0,1,0)}, bar)
+  _ppCorner(fill,99); self:AnimatedGradient(fill,0)
+  task.spawn(function()
+    while circle.Parent do
+      TweenService:Create(circle, TweenInfo.new(1.2, Enum.EasingStyle.Linear), {Rotation = circle.Rotation + 360}):Play()
+      task.wait(1.2)
+    end
+  end)
+  return key, loader
+end
+
+function Speed_Library.PhotoPack:KillerPanel(parent)
+  local killer = _ppCard(parent, "KillerPanel", UDim2.fromOffset(10,342), UDim2.fromOffset(390,260), Color3.fromRGB(255,20,30))
+  _ppHeader(killer, "KILLER", "☠", Color3.fromRGB(255,80,80))
+  local nav = _ppCreate("Frame", {BackgroundColor3=Color3.fromRGB(18,8,12), BorderSizePixel=0, Position=UDim2.fromOffset(0,44), Size=UDim2.fromOffset(120,216)}, killer)
+  _ppStroke(nav, Color3.fromRGB(120,20,25),1,.5)
+  local items={"☠ Kill Method","♙ Target","☑ Auto Farm","☄ Custom","♧ Advanced"}
+  for i,it in ipairs(items) do local b=_ppButton(nav,it,i==1 and Color3.fromRGB(170,20,25) or Color3.fromRGB(20,10,15)); b.Position=UDim2.fromOffset(12,12+(i-1)*36); b.Size=UDim2.fromOffset(96,28); b.TextXAlignment=Enum.TextXAlignment.Left end
+  local panel = _ppCreate("Frame", {BackgroundTransparency=1, Position=UDim2.fromOffset(135,55), Size=UDim2.fromOffset(240,190)}, killer)
+  _ppLabel(panel,"Kill Method",12,true).Position=UDim2.fromOffset(0,0)
+  local dd=_ppButton(panel,"Normal ⌄",Color3.fromRGB(22,22,30)); dd.Position=UDim2.fromOffset(0,25); dd.Size=UDim2.fromOffset(220,30); dd.TextXAlignment=Enum.TextXAlignment.Left
+  self:ToggleRow(panel,"Start Killing",true,Speed_Library.PhotoPack.Theme.Red).Position=UDim2.fromOffset(0,65)
+  self:ToggleRow(panel,"Auto Farm",true,Speed_Library.PhotoPack.Theme.Red).Position=UDim2.fromOffset(0,98)
+  self:ToggleRow(panel,"Bring Mobs",false,Speed_Library.PhotoPack.Theme.Red).Position=UDim2.fromOffset(0,131)
+  local start=_ppButton(panel,"Start Killing",Speed_Library.PhotoPack.Theme.Red); start.Position=UDim2.fromOffset(0,165); start.Size=UDim2.fromOffset(220,34)
+  return killer
+end
+
+function Speed_Library.PhotoPack:RightPanels(parent)
+  local set = _ppCard(parent, "SettingsPanel", UDim2.fromOffset(1018, 10), UDim2.fromOffset(455, 320), Color3.fromRGB(255, 0, 120))
+  self:RainbowBorder(set, 1.2)
+  _ppHeader(set, "SETTINGS", "⚙", Color3.fromRGB(255,180,160))
+  local side = _ppCreate("Frame", {BackgroundTransparency=1, Position=UDim2.fromOffset(15,55), Size=UDim2.fromOffset(120,230)}, set)
+  for i,it in ipairs({"🌟 General","👁 Visuals","🔗 Themes","↯ Animations","⌨ Keybinds","▤ Configs","ℹ About"}) do local b=_ppButton(side,it,i==1 and Color3.fromRGB(150,25,90) or Color3.fromRGB(15,15,24)); b.Position=UDim2.fromOffset(0,(i-1)*32); b.Size=UDim2.fromOffset(110,28); b.TextXAlignment=Enum.TextXAlignment.Left end
+  local content=_ppCard(set,"GeneralBox",UDim2.fromOffset(150,60),UDim2.fromOffset(285,230),Color3.fromRGB(90,40,120))
+  _ppLabel(content,"General Settings",12,true).Position=UDim2.fromOffset(14,10)
+  self:ToggleRow(content,"Enable Notifications",true,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(14,42); self:ToggleRow(content,"Show Watermark",true,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(14,78); self:ToggleRow(content,"FPS Boost",true,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(14,114)
+  self:SliderRow(content,"UI Scale",10,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(14,150)
+  local save=_ppButton(content,"SAVE SETTINGS",Color3.fromRGB(255,0,130)); save.Position=UDim2.fromOffset(14,192); save.Size=UDim2.fromOffset(257,30); self:AnimatedGradient(save,0)
+
+  local notify = _ppCard(parent, "NotificationsPanel", UDim2.fromOffset(1230, 342), UDim2.fromOffset(290, 260), Color3.fromRGB(0,255,160))
+  _ppHeader(notify,"NOTIFICATIONS","🔔",Color3.fromRGB(180,255,190))
+  local notes={{"Success","Key verified successfully!",Speed_Library.PhotoPack.Theme.Green},{"Info","Welcome to Doca V1!",Speed_Library.PhotoPack.Theme.Blue},{"Warning","This is a warning message!",Speed_Library.PhotoPack.Theme.Yellow},{"Error","Something went wrong!",Speed_Library.PhotoPack.Theme.Red}}
+  for i,n in ipairs(notes) do local c=_ppCard(notify,"Toast"..i,UDim2.fromOffset(15,45+(i-1)*50),UDim2.fromOffset(260,42),n[3]); c.BackgroundColor3=Color3.fromRGB(12,16,20); _ppLabel(c,n[1],11,true,n[3]).Position=UDim2.fromOffset(36,5); _ppLabel(c,n[2],10,false).Position=UDim2.fromOffset(36,20); local dot=_ppCreate("Frame",{BackgroundColor3=n[3],BorderSizePixel=0,Position=UDim2.fromOffset(12,12),Size=UDim2.fromOffset(18,18)},c); _ppCorner(dot,99) end
+  return set, notify
+end
+
+function Speed_Library.PhotoPack:MiddlePanels(parent)
+  local themes=_ppCard(parent,"ThemesPanel",UDim2.fromOffset(415,414),UDim2.fromOffset(475,220),Color3.fromRGB(255,0,255)); self:RainbowBorder(themes,1.2); _ppHeader(themes,"THEMES","🎨",Color3.fromRGB(0,220,255))
+  local colors={{"Red",Speed_Library.PhotoPack.Theme.Red},{"Purple",Speed_Library.PhotoPack.Theme.Accent},{"Blue",Speed_Library.PhotoPack.Theme.Blue},{"Green",Speed_Library.PhotoPack.Theme.Green},{"Rainbow",Speed_Library.PhotoPack.Theme.Yellow}}
+  for i,c in ipairs(colors) do local b=_ppButton(themes,c[1],c[2]); b.Position=UDim2.fromOffset(18+(i-1)*87,52); b.Size=UDim2.fromOffset(75,36); if c[1]=="Rainbow" then self:AnimatedGradient(b,0) end end
+  local box=_ppCard(themes,"RainbowBox",UDim2.fromOffset(18,105),UDim2.fromOffset(438,98),Color3.fromRGB(255,0,255)); _ppLabel(box,"🌈  RAINBOW MODE",13,true,Speed_Library.PhotoPack.Theme.Yellow).Position=UDim2.fromOffset(14,8); self:ToggleRow(box,"Enable Rainbow",true,Speed_Library.PhotoPack.Theme.Green).Position=UDim2.fromOffset(14,36); self:SliderRow(box,"Rainbow Speed",5,Speed_Library.PhotoPack.Theme.Red).Position=UDim2.fromOffset(14,62)
+
+  local anim=_ppCard(parent,"AnimationsPanel",UDim2.fromOffset(300,842),UDim2.fromOffset(345,160),Color3.fromRGB(255,0,200)); _ppHeader(anim,"ANIMATIONS","🎆",Color3.fromRGB(255,90,255)); self:ToggleRow(anim,"UI Animations",true,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(16,48); self:SliderRow(anim,"Animation Speed",7,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(16,88); self:Particles(anim,16)
+
+  local keybinds=_ppCard(parent,"KeybindsPanel",UDim2.fromOffset(10,842),UDim2.fromOffset(275,160),Color3.fromRGB(255,140,0)); _ppHeader(keybinds,"KEYBINDS","⌨",Color3.fromRGB(255,200,90))
+  for i, row in ipairs({{"Toggle UI","RightShift"},{"Kill All","K"},{"Teleport","T"},{"Rebirth","R"}}) do local a=_ppLabel(keybinds,row[1],11,false); a.Position=UDim2.fromOffset(42,45+(i-1)*26); a.Size=UDim2.fromOffset(120,18); local k=_ppButton(keybinds,row[2],Color3.fromRGB(35,28,35)); k.Position=UDim2.fromOffset(178,45+(i-1)*26); k.Size=UDim2.fromOffset(75,20) end
+  return themes, anim, keybinds
+end
+
+function Speed_Library.PhotoPack:GamePanels(parent)
+  local tele=_ppCard(parent,"TeleportPanel",UDim2.fromOffset(10,640),UDim2.fromOffset(355,205),Color3.fromRGB(0,170,255)); _ppHeader(tele,"TELEPORT","✈",Color3.fromRGB(100,210,255))
+  local side=_ppCreate("Frame",{BackgroundColor3=Color3.fromRGB(8,14,24),BorderSizePixel=0,Position=UDim2.fromOffset(0,44),Size=UDim2.fromOffset(112,161)},tele); _ppStroke(side,Color3.fromRGB(0,80,150),1,.5)
+  for i,it in ipairs({"✈ Islands","☷ Worlds","▣ Dungeons","◇ Custom"}) do local b=_ppButton(side,it,i==1 and Color3.fromRGB(0,80,170) or Color3.fromRGB(8,14,24)); b.Position=UDim2.fromOffset(12,10+(i-1)*31); b.Size=UDim2.fromOffset(88,24); b.TextXAlignment=Enum.TextXAlignment.Left end
+  for i,it in ipairs({"Starter Island","Desert Island","Snow Island","Dragon Island"}) do local l=_ppLabel(tele,"◆  "..it,11,false); l.Position=UDim2.fromOffset(130,55+(i-1)*34); l.Size=UDim2.fromOffset(130,25); local b=_ppButton(tele,"Teleport",Speed_Library.PhotoPack.Theme.Blue); b.Position=UDim2.fromOffset(265,55+(i-1)*34); b.Size=UDim2.fromOffset(72,24) end
+
+  local reb=_ppCard(parent,"RebirthPanel",UDim2.fromOffset(380,640),UDim2.fromOffset(300,205),Color3.fromRGB(0,255,70)); _ppHeader(reb,"REBIRTH","↻",Color3.fromRGB(110,255,130)); local num=_ppCreate("Frame",{BackgroundColor3=Color3.fromRGB(5,25,10),BorderSizePixel=0,AnchorPoint=Vector2.new(.5,0),Position=UDim2.new(.5,35,0,67),Size=UDim2.fromOffset(88,88)},reb); _ppCorner(num,99); self:RainbowBorder(num,5); local n=_ppLabel(num,"15",30,true,Speed_Library.PhotoPack.Theme.Green); n.Size=UDim2.new(1,0,1,0); n.TextXAlignment=Enum.TextXAlignment.Center; local rb=_ppButton(reb,"Rebirth",Speed_Library.PhotoPack.Theme.Green); rb.Position=UDim2.fromOffset(115,165); rb.Size=UDim2.fromOffset(150,28); self:AnimatedGradient(rb,0)
+
+  local shop=_ppCard(parent,"ShopPanel",UDim2.fromOffset(695,640),UDim2.fromOffset(300,205),Color3.fromRGB(255,180,0)); _ppHeader(shop,"SHOP","🛒",Color3.fromRGB(255,220,50))
+  for i,it in ipairs({{"VIP","Get VIP Access","499"},{"x2 Coins","Double your coins","299"},{"Fast Kill","Kill faster!","199"},{"Auto Farm","Farm automatically","399"}}) do local c=_ppCard(shop,"ShopItem"..i,UDim2.fromOffset(110,48+(i-1)*36),UDim2.fromOffset(170,30),Color3.fromRGB(60,60,50)); _ppLabel(c,it[1],11,true).Position=UDim2.fromOffset(33,2); _ppLabel(c,it[2],9,false,Speed_Library.PhotoPack.Theme.Muted).Position=UDim2.fromOffset(33,16); local price=_ppButton(c,"◉ "..it[3],Speed_Library.PhotoPack.Theme.Green); price.Position=UDim2.fromOffset(112,6); price.Size=UDim2.fromOffset(50,18) end
+
+  local stats=_ppCard(parent,"StatsPanel",UDim2.fromOffset(1010,640),UDim2.fromOffset(500,205),Color3.fromRGB(0,230,255)); _ppHeader(stats,"STATS","▥",Color3.fromRGB(70,230,255)); local p=_ppLabel(stats,"Player Stats",13,true); p.Position=UDim2.fromOffset(145,50)
+  for i,row in ipairs({{"Level","2,500"},{"Experience","125,000 / 500,000"},{"Coins","9,999,999"},{"Gems","9,999"},{"Play Time","120:30:45"},{"Kills","99,999"}}) do local a=_ppLabel(stats,row[1],11,false); a.Position=UDim2.fromOffset(145,75+(i-1)*20); a.Size=UDim2.fromOffset(115,18); local b=_ppLabel(stats,row[2],11,true,Speed_Library.PhotoPack.Theme.Yellow); b.Position=UDim2.fromOffset(280,75+(i-1)*20); b.Size=UDim2.fromOffset(110,18); b.TextXAlignment=Enum.TextXAlignment.Right end
+  local av=_ppCreate("Frame",{BackgroundColor3=Color3.fromRGB(18,8,34),BorderSizePixel=0,Position=UDim2.fromOffset(395,55),Size=UDim2.fromOffset(82,120)},stats); _ppCorner(av,10); self:RainbowBorder(av,2); self:Particles(av,12); local d=_ppLabel(av,"D",48,true,Color3.fromRGB(180,80,255)); d.Size=UDim2.new(1,0,1,0); d.TextXAlignment=Enum.TextXAlignment.Center
+  return tele, reb, shop, stats
+end
+
+function Speed_Library.PhotoPack:EffectsBar(parent)
+  local bar=_ppCard(parent,"EffectsPreview",UDim2.fromOffset(10,1015),UDim2.fromOffset(1128,145),Color3.fromRGB(0,160,255)); _ppLabel(bar,"★ EFFECTS PREVIEW",12,true).Position=UDim2.fromOffset(18,14)
+  local kinds={{"RAINBOW BORDER","border"},{"NEON GLOW","glow"},{"GRADIENT ANIMATION","gradient"},{"PARTICLES","particles"},{"RIPPLE EFFECT","ripple"},{"PULSE EFFECT","pulse"}}
+  for i,k in ipairs(kinds) do local card=self:NeonPreview(bar,k[1],k[2]); card.Position=UDim2.fromOffset(18+(i-1)*180,42) end
+  local util=_ppCard(parent,"UtilsPanel",UDim2.fromOffset(1150,1015),UDim2.fromOffset(180,145),Color3.fromRGB(255,0,180)); _ppHeader(util,"UTILS","⚙",Color3.fromRGB(255,120,230)); self:ToggleRow(util,"FPS Boost",true,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(16,48); self:ToggleRow(util,"Hide Key",false,Speed_Library.PhotoPack.Theme.Pink).Position=UDim2.fromOffset(16,80)
+  local logo=_ppCard(parent,"LogoPanel",UDim2.fromOffset(1345,1015),UDim2.fromOffset(165,145),Color3.fromRGB(0,180,255)); self:RainbowBorder(logo,2.5); self:Particles(logo,25); local l=_ppLabel(logo,"D",55,true,Color3.fromRGB(240,240,255)); l.Size=UDim2.new(1,0,0,80); l.Position=UDim2.fromOffset(0,12); l.TextXAlignment=Enum.TextXAlignment.Center; local name=_ppLabel(logo,"Doca V1",18,true); name.Position=UDim2.fromOffset(0,88); name.Size=UDim2.new(1,0,24); name.TextXAlignment=Enum.TextXAlignment.Center
+  return bar, util, logo
+end
+
+function Speed_Library.PhotoPack:BottomBar(parent)
+  local bottom=_ppCreate("Frame",{BackgroundColor3=Color3.fromRGB(9,9,15),BorderSizePixel=0,Position=UDim2.new(0,10,1,-34),Size=UDim2.new(1,-20,0,28)},parent)
+  _ppCorner(bottom,10); self:RainbowBorder(bottom,1)
+  local items={{"Doca V1",0},{"Premium",100},{"FPS: 120",280},{"Ping: 68ms",385},{"Players: 12/30",505},{"Time: 12:34:56",650},{"Rainbow Mode",1040}}
+  for _,it in ipairs(items) do local lab=_ppLabel(bottom,it[1],12,true,it[1]=="Premium" and Speed_Library.PhotoPack.Theme.Yellow or Speed_Library.PhotoPack.Theme.Text); lab.Position=UDim2.fromOffset(it[2]+12,0); lab.Size=UDim2.fromOffset(150,28) end
+  local toggle=_ppCreate("Frame",{BackgroundColor3=Speed_Library.PhotoPack.Theme.Green,BorderSizePixel=0,Position=UDim2.new(1,-230,0,5),Size=UDim2.fromOffset(40,18)},bottom); _ppCorner(toggle,99)
+  return bottom
+end
+
+function Speed_Library.PhotoPack:CreatePhotoMatchShowcase(config)
+  config = config or {}
+  if Speed_Library.StartRainbow then Speed_Library:StartRainbow({Speed = config.RainbowSpeed or 0.18, Saturation = 0.95, Value = 1}) end
+  local gui = _ppCreate("ScreenGui", {Name = config.Name or "DocaV1_PhotoMatch_Showcase", ZIndexBehavior = Enum.ZIndexBehavior.Sibling, ResetOnSpawn = false}, _ppParent())
+  local root = _ppCreate("Frame", {Name="Root", BackgroundColor3=Speed_Library.PhotoPack.Theme.Background, BorderSizePixel=0, Size=UDim2.fromOffset(1536,1180), Position=UDim2.new(.5,-768,.5,-590), ClipsDescendants=true}, gui)
+  _ppCorner(root, 0)
+  self:Particles(root, config.BackgroundParticles or 70)
+  self:KeyAndLoader(root)
+  self:MainDashboard(root)
+  self:RightPanels(root)
+  self:KillerPanel(root)
+  self:MiddlePanels(root)
+  self:GamePanels(root)
+  self:EffectsBar(root)
+  self:BottomBar(root)
+  local scale = _ppCreate("UIScale", {Scale = config.Scale or math.min(workspace.CurrentCamera.ViewportSize.X / 1536, workspace.CurrentCamera.ViewportSize.Y / 1180, 1)}, root)
+  self:Track(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    if root.Parent then scale.Scale = config.Scale or math.min(workspace.CurrentCamera.ViewportSize.X / 1536, workspace.CurrentCamera.ViewportSize.Y / 1180, 1) end
+  end))
+  root.BackgroundTransparency = 1
+  TweenService:Create(root, TweenInfo.new(.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0}):Play()
+  if Speed_Library.Ultra and Speed_Library.Ultra.AnimateGuiTree then
+    task.defer(function() Speed_Library.Ultra:AnimateGuiTree(root) end)
+  end
+  return gui, root
+end
+
+function Speed_Library:CreatePhotoMatchShowcase(config)
+  return Speed_Library.PhotoPack:CreatePhotoMatchShowcase(config)
+end
+
+function Speed_Library:InstallPhotoMatchOnGui(root, config)
+  config = config or {}
+  if not root then return end
+  if Speed_Library.StartRainbow then Speed_Library:StartRainbow({Speed = config.RainbowSpeed or 0.18}) end
+  Speed_Library.PhotoPack:RainbowBorder(root, config.BorderThickness or 1.5)
+  Speed_Library.PhotoPack:Particles(root, config.Particles or 24)
+  for _, obj in ipairs(root:GetDescendants()) do
+    if obj:IsA("Frame") then
+      if obj.BackgroundTransparency < .96 then
+        Speed_Library.PhotoPack:RainbowBorder(obj, .8)
+      end
+    elseif obj:IsA("TextButton") then
+      Speed_Library.PhotoPack:RainbowBorder(obj, .7)
+    elseif obj:IsA("TextLabel") and obj.Text ~= "" then
+      if config.RainbowText ~= false and Speed_Library.RegisterRainbowObject then
+        Speed_Library:RegisterRainbowObject(obj, "TextColor3", math.random())
+      end
+    elseif obj:IsA("UIStroke") and Speed_Library.RegisterRainbowObject then
+      Speed_Library:RegisterRainbowObject(obj, "Color", math.random())
+    elseif obj:IsA("UIGradient") and Speed_Library.RegisterRainbowGradient then
+      Speed_Library:RegisterRainbowGradient(obj, math.random())
+    end
+  end
+end
+
+Speed_Library.PhotoMatchUsage = [[
+-- Full preview like the photo:
+local Library = loadstring(game:HttpGet("YOUR_RAW_LINK"))()
+Library:CreatePhotoMatchShowcase({RainbowSpeed = 0.2})
+
+-- Or apply effects to your existing ScreenGui/Frame:
+Library:InstallPhotoMatchOnGui(YourGuiOrFrame, {
+  Particles = 24,
+  RainbowText = true,
+  BorderThickness = 1.5,
+  RainbowSpeed = 0.22
+})
+]]
+
 return Speed_Library
