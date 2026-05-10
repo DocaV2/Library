@@ -51,68 +51,6 @@ local Custom = {} do
 
     return tonumber(table.concat(List))
   end
-
-
-  --// PERFORMANCE / ANIMATION HELPERS
-  Custom._Connections = Custom._Connections or {}
-  Custom._ActiveTweens = Custom._ActiveTweens or {}
-
-  function Custom:Connect(Signal, Callback)
-    local Connection = Signal:Connect(Callback)
-    table.insert(self._Connections, Connection)
-    return Connection
-  end
-
-  function Custom:Tween(Object, Time, Properties, Style, Direction)
-    if not Object or not Object.Parent then return nil end
-
-    local OldTween = self._ActiveTweens[Object]
-    if OldTween then
-      pcall(function() OldTween:Cancel() end)
-    end
-
-    local Tween = TweenService:Create(
-      Object,
-      TweenInfo.new(Time or 0.2, Style or Enum.EasingStyle.Quint, Direction or Enum.EasingDirection.Out),
-      Properties
-    )
-
-    self._ActiveTweens[Object] = Tween
-    Tween.Completed:Connect(function()
-      if self._ActiveTweens[Object] == Tween then
-        self._ActiveTweens[Object] = nil
-      end
-    end)
-
-    Tween:Play()
-    return Tween
-  end
-
-  function Custom:Cleanup()
-    for _, Connection in ipairs(self._Connections) do
-      pcall(function() Connection:Disconnect() end)
-    end
-    table.clear(self._Connections)
-
-    for _, Tween in pairs(self._ActiveTweens) do
-      pcall(function() Tween:Cancel() end)
-    end
-    table.clear(self._ActiveTweens)
-  end
-
-  function Custom:AutoCanvas(ScrollingFrame, Layout, ExtraPadding)
-    if not ScrollingFrame or not Layout then return end
-    ExtraPadding = ExtraPadding or 8
-
-    local function Update()
-      ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y + ExtraPadding)
-    end
-
-    Update()
-    self:Connect(Layout:GetPropertyChangedSignal("AbsoluteContentSize"), Update)
-    self:Connect(ScrollingFrame.ChildAdded, Update)
-    self:Connect(ScrollingFrame.ChildRemoved, Update)
-  end
 end
 
 Custom:EnabledAFK()
@@ -170,26 +108,21 @@ end
 local Open_Close = OpenClose()
 
 local function MakeDraggable(topbarobject, object)
-  local dragging = false
-  local dragStart, startPos, dragInput
+  local dragging, dragStart, startPos = false, nil, nil
 
   local function UpdatePos(input)
     local delta = input.Position - dragStart
-    object.Position = UDim2.new(
-      startPos.X.Scale,
-      startPos.X.Offset + delta.X,
-      startPos.Y.Scale,
-      startPos.Y.Offset + delta.Y
-    )
+    local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    object.Position = newPos
   end
 
-  Custom:Connect(topbarobject.InputBegan, function(input)
+  topbarobject.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
       dragging = true
       dragStart = input.Position
       startPos = object.Position
 
-      Custom:Connect(input.Changed, function()
+      input.Changed:Connect(function()
         if input.UserInputState == Enum.UserInputState.End then
           dragging = false
         end
@@ -197,51 +130,51 @@ local function MakeDraggable(topbarobject, object)
     end
   end)
 
-  Custom:Connect(topbarobject.InputChanged, function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-      dragInput = input
-    end
-  end)
-
-  Custom:Connect(UserInputService.InputChanged, function(input)
-    if dragging and input == dragInput then
+  topbarobject.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
       UpdatePos(input)
     end
   end)
 end
 
 function CircleClick(Button, X, Y)
-  if not Button or not Button.Parent then return end
+	task.spawn(function()
+		Button.ClipsDescendants = true
+		
+		local Circle = Instance.new("ImageLabel")
+		Circle.Image = "rbxassetid://106471194043211"
+		Circle.ImageColor3 = Color3.fromRGB(80, 80, 80)
+		Circle.ImageTransparency = 0.8999999761581421
+		Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		Circle.BackgroundTransparency = 1
+		Circle.ZIndex = 10
+		Circle.Name = "Circle"
+		Circle.Parent = Button
+		
+		local NewX = X - Button.AbsolutePosition.X
+		local NewY = Y - Button.AbsolutePosition.Y
+		Circle.Position = UDim2.new(0, NewX, 0, NewY)
 
-  task.spawn(function()
-    Button.ClipsDescendants = true
+		local Size = math.max(Button.AbsoluteSize.X, Button.AbsoluteSize.Y) * 1.5
 
-    local Circle = Instance.new("ImageLabel")
-    Circle.Image = "rbxassetid://106471194043211"
-    Circle.ImageColor3 = Color3.fromRGB(95, 95, 95)
-    Circle.ImageTransparency = 0.82
-    Circle.BackgroundTransparency = 1
-    Circle.ZIndex = 50
-    Circle.Name = "Circle"
-    Circle.Parent = Button
+		local Time = 0.5
+		local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-    local NewX = (X or 0) - Button.AbsolutePosition.X
-    local NewY = (Y or 0) - Button.AbsolutePosition.Y
-    local Size = math.max(Button.AbsoluteSize.X, Button.AbsoluteSize.Y) * 1.75
-
-    Circle.Position = UDim2.new(0, NewX, 0, NewY)
-    Circle.Size = UDim2.fromOffset(0, 0)
-
-    Custom:Tween(Circle, 0.38, {
-      Size = UDim2.fromOffset(Size, Size),
-      Position = UDim2.new(0, NewX - Size / 2, 0, NewY - Size / 2),
-      ImageTransparency = 1
-    }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-    task.delay(0.42, function()
-      if Circle then Circle:Destroy() end
-    end)
-  end)
+		local Tween = TweenService:Create(Circle, TweenInfo, {
+			Size = UDim2.new(0, Size, 0, Size),
+			Position = UDim2.new(0.5, -Size/2, 0.5, -Size/2)
+		})
+		
+		Tween:Play()
+		
+		Tween.Completed:Connect(function()
+			for i = 1, 10 do
+				Circle.ImageTransparency = Circle.ImageTransparency + 0.01
+				wait(Time / 10)
+			end
+			Circle:Destroy()
+		end)
+	end)
 end
 
 local Speed_Library, Notification = {}, {}
@@ -518,13 +451,6 @@ function Speed_Library:CreateWindow(Config)
     Thickness = 1.6
   }, Main)
 
-
-  local MainScale = Custom:Create("UIScale", {Scale = 0.92}, Main)
-  task.defer(function()
-    Custom:Tween(MainScale, 0.38, {Scale = 1}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    Custom:Tween(Main, 0.25, {BackgroundTransparency = 0.1}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-  end)
-
   local Top = Custom:Create("Frame", {
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
     BackgroundTransparency = 0.9990000128746033,
@@ -672,9 +598,9 @@ function Speed_Library:CreateWindow(Config)
   local LayersPageLayout = Custom:Create("UIPageLayout", {
     SortOrder = Enum.SortOrder.LayoutOrder,
     Name = "LayersPageLayout",
-    TweenTime = 0.28,
-    EasingDirection = Enum.EasingDirection.Out,
-    EasingStyle = Enum.EasingStyle.Quint
+    TweenTime = 0.5,
+    EasingDirection = Enum.EasingDirection.InOut,
+    EasingStyle = Enum.EasingStyle.Quad
   }, LayersFolder)
 
   local ScrollTab = Custom:Create("ScrollingFrame", {
@@ -711,38 +637,22 @@ function Speed_Library:CreateWindow(Config)
   ScrollTab.ChildRemoved:Connect(UpdateSize)
 
   Min.Activated:Connect(function()
-    CircleClick(Min, Player:GetMouse().X, Player:GetMouse().Y)
-    Custom:Tween(MainScale, 0.18, {Scale = 0.88}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-    Custom:Tween(Main, 0.18, {BackgroundTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		CircleClick(Min, Player:GetMouse().X, Player:GetMouse().Y)
+		DropShadowHolder.Visible = false
 
-    task.delay(0.18, function()
-      DropShadowHolder.Visible = false
-      Open_Close.Visible = true
-      Open_Close.ImageTransparency = 1
-      Custom:Tween(Open_Close, 0.22, {ImageTransparency = 0}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    end)
-  end)
+		if not Open_Close.Visible then Open_Close.Visible = true end
+	end)
 
   Open_Close.Activated:Connect(function()
-    DropShadowHolder.Visible = true
-    MainScale.Scale = 0.9
-    Main.BackgroundTransparency = 1
-    Custom:Tween(MainScale, 0.32, {Scale = 1}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    Custom:Tween(Main, 0.24, {BackgroundTransparency = 0.1}, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    if Open_Close.Visible then Open_Close.Visible = false end
-  end)
+		DropShadowHolder.Visible = true
+		if Open_Close.Visible then Open_Close.Visible = false end
+	end)
 
   Close.Activated:Connect(function()
-    CircleClick(Close, Player:GetMouse().X, Player:GetMouse().Y)
-    Custom:Tween(MainScale, 0.18, {Scale = 0.86}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-    Custom:Tween(Main, 0.18, {BackgroundTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-    task.delay(0.2, function()
-      Custom:Cleanup()
-      if SpeedHubXGui then SpeedHubXGui:Destroy() end
-      if Open_Close and Open_Close.Parent then Open_Close.Parent:Destroy() end
-      if not Speed_Library.Unloaded then Speed_Library.Unloaded = true end
-    end)
-  end)
+		CircleClick(Close, Player:GetMouse().X, Player:GetMouse().Y)
+    if SpeedHubXGui then SpeedHubXGui:Destroy() end
+		if not Speed_Library.Unloaded then Speed_Library.Unloaded = true end
+	end)
 
   DropShadowHolder.Size = UDim2.new(0, 115 + TextLabel.TextBounds.X + 1 + TextLabel1.TextBounds.X, 0, 350)
 	MakeDraggable(Top, DropShadowHolder)
@@ -1601,9 +1511,8 @@ function Speed_Library:CreateWindow(Config)
         end)
       
         function Funcs_Toggle:Set(Value)
-          Funcs_Toggle.Value = Value and true or false
-          Callback(Funcs_Toggle.Value)
-          ToggleAnimation(Funcs_Toggle.Value)
+          Callback(Value)
+          ToggleAnimation(Value)
         end
         Funcs_Toggle:Set(Funcs_Toggle.Value)
 
@@ -2321,5 +2230,320 @@ function Speed_Library:CreateWindow(Config)
 
   return Tabs
 end
+
+
+
+--// ============================================================
+--// DOCA V1 EXTRA OPTIMIZATION + ANIMATION PACK
+--// Added: theme presets, fps mode, tween cache, cleaner ripple,
+--// keybind hide/show, global unload, animated notifications queue,
+--// mobile/pc auto scaling helpers, hover helpers.
+--// ============================================================
+
+Speed_Library.Config = Speed_Library.Config or {
+  Animations = true,
+  Ripple = true,
+  LowPerformanceMode = false,
+  AnimationSpeed = 1,
+  ToggleKey = Enum.KeyCode.RightControl,
+  Theme = "DocaRed"
+}
+
+Speed_Library.Themes = {
+  DocaRed = {
+    Accent = Color3.fromRGB(250, 7, 7),
+    Background = Color3.fromRGB(15, 15, 15),
+    Card = Color3.fromRGB(28, 28, 28),
+    Text = Color3.fromRGB(235, 235, 235),
+    Muted = Color3.fromRGB(145, 145, 145)
+  },
+  DarkPurple = {
+    Accent = Color3.fromRGB(160, 80, 255),
+    Background = Color3.fromRGB(13, 10, 18),
+    Card = Color3.fromRGB(25, 20, 34),
+    Text = Color3.fromRGB(240, 236, 255),
+    Muted = Color3.fromRGB(160, 150, 180)
+  },
+  IceBlue = {
+    Accent = Color3.fromRGB(72, 175, 255),
+    Background = Color3.fromRGB(9, 13, 18),
+    Card = Color3.fromRGB(18, 26, 36),
+    Text = Color3.fromRGB(235, 248, 255),
+    Muted = Color3.fromRGB(145, 170, 190)
+  },
+  ToxicGreen = {
+    Accent = Color3.fromRGB(75, 255, 110),
+    Background = Color3.fromRGB(8, 14, 9),
+    Card = Color3.fromRGB(18, 30, 20),
+    Text = Color3.fromRGB(232, 255, 235),
+    Muted = Color3.fromRGB(145, 180, 150)
+  }
+}
+
+local __DocaConnections = {}
+local __DocaTweens = setmetatable({}, {__mode = "k"})
+local __DocaWindows = {}
+local __NotifyQueue = {}
+local __NotifyBusy = false
+
+local function __safeInsert(tbl, value)
+  tbl[#tbl + 1] = value
+  return value
+end
+
+function Speed_Library:Connect(signal, callback)
+  local con = signal:Connect(callback)
+  return __safeInsert(__DocaConnections, con)
+end
+
+function Speed_Library:Tween(object, info, props)
+  if not object or not object.Parent then return nil end
+  if Speed_Library.Config.LowPerformanceMode then
+    for k, v in pairs(props) do pcall(function() object[k] = v end) end
+    return nil
+  end
+  if not Speed_Library.Config.Animations then
+    for k, v in pairs(props) do pcall(function() object[k] = v end) end
+    return nil
+  end
+
+  __DocaTweens[object] = __DocaTweens[object] or {}
+  for prop in pairs(props) do
+    local old = __DocaTweens[object][prop]
+    if old then pcall(function() old:Cancel() end) end
+  end
+
+  local speed = math.max(0.05, tonumber(Speed_Library.Config.AnimationSpeed) or 1)
+  local tweenInfo = TweenInfo.new(
+    math.max(0.01, info.Time / speed),
+    info.EasingStyle,
+    info.EasingDirection,
+    info.RepeatCount,
+    info.Reverses,
+    info.DelayTime
+  )
+  local tween = TweenService:Create(object, tweenInfo, props)
+  for prop in pairs(props) do __DocaTweens[object][prop] = tween end
+  tween:Play()
+  return tween
+end
+
+function Speed_Library:SetTheme(themeName)
+  local theme = Speed_Library.Themes[themeName] or Speed_Library.Themes.DocaRed
+  Speed_Library.Config.Theme = themeName
+  Custom.ColorRGB = theme.Accent
+
+  for _, gui in ipairs(__DocaWindows) do
+    if gui and gui.Parent then
+      for _, obj in ipairs(gui:GetDescendants()) do
+        if obj:IsA("UIStroke") and obj.Color == Custom.ColorRGB then
+          obj.Color = theme.Accent
+        elseif obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+          if obj.TextColor3 == Custom.ColorRGB then obj.TextColor3 = theme.Accent end
+        elseif obj:IsA("Frame") then
+          if obj.BackgroundColor3 == Custom.ColorRGB then obj.BackgroundColor3 = theme.Accent end
+        elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+          if obj.ImageColor3 == Custom.ColorRGB then obj.ImageColor3 = theme.Accent end
+        end
+      end
+    end
+  end
+end
+
+function Speed_Library:SetPerformanceMode(enabled)
+  Speed_Library.Config.LowPerformanceMode = enabled and true or false
+  Speed_Library.Config.Ripple = not enabled
+  Speed_Library.Config.AnimationSpeed = enabled and 2.2 or 1
+end
+
+-- Better ripple: no manual wait loop, uses Debris-style destroy.
+local OldCircleClick = CircleClick
+function CircleClick(Button, X, Y)
+  if not Speed_Library.Config.Ripple or Speed_Library.Config.LowPerformanceMode then return end
+  if not Button or not Button.Parent then return end
+  Button.ClipsDescendants = true
+
+  local Circle = Instance.new("ImageLabel")
+  Circle.Name = "DocaRipple"
+  Circle.Image = "rbxassetid://106471194043211"
+  Circle.ImageColor3 = Custom.ColorRGB
+  Circle.ImageTransparency = 0.78
+  Circle.BackgroundTransparency = 1
+  Circle.ZIndex = 100
+  Circle.Parent = Button
+
+  local size = math.max(Button.AbsoluteSize.X, Button.AbsoluteSize.Y) * 1.75
+  local posX = (X or 0) - Button.AbsolutePosition.X
+  local posY = (Y or 0) - Button.AbsolutePosition.Y
+  Circle.Position = UDim2.fromOffset(posX, posY)
+  Circle.Size = UDim2.fromOffset(0, 0)
+
+  local tw = Speed_Library:Tween(Circle, TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    Size = UDim2.fromOffset(size, size),
+    Position = UDim2.new(0.5, -size / 2, 0.5, -size / 2),
+    ImageTransparency = 1
+  })
+  if tw then
+    tw.Completed:Connect(function()
+      if Circle then Circle:Destroy() end
+    end)
+  else
+    Circle:Destroy()
+  end
+end
+
+function Speed_Library:AddHover(object, normalProps, hoverProps)
+  if not object then return end
+  Speed_Library:Connect(object.MouseEnter, function()
+    Speed_Library:Tween(object, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), hoverProps)
+  end)
+  Speed_Library:Connect(object.MouseLeave, function()
+    Speed_Library:Tween(object, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), normalProps)
+  end)
+end
+
+function Speed_Library:BindToggleKey(screenGui, keyCode)
+  keyCode = keyCode or Speed_Library.Config.ToggleKey
+  if not screenGui then return end
+  Speed_Library:Connect(UserInputService.InputBegan, function(input, processed)
+    if processed then return end
+    if input.KeyCode == keyCode then
+      screenGui.Enabled = not screenGui.Enabled
+    end
+  end)
+end
+
+function Speed_Library:UnloadAll()
+  Speed_Library.Unloaded = true
+  for _, con in ipairs(__DocaConnections) do
+    pcall(function() con:Disconnect() end)
+  end
+  table.clear(__DocaConnections)
+  for _, gui in ipairs(__DocaWindows) do
+    if gui and gui.Parent then pcall(function() gui:Destroy() end) end
+  end
+  table.clear(__DocaWindows)
+end
+
+-- Queue wrapper: prevents notification spam from stacking badly.
+local __OldNotification = Speed_Library.SetNotification
+function Speed_Library:SetNotification(Config)
+  table.insert(__NotifyQueue, Config)
+  if __NotifyBusy then return end
+  __NotifyBusy = true
+  task.spawn(function()
+    while #__NotifyQueue > 0 do
+      local nextCfg = table.remove(__NotifyQueue, 1)
+      pcall(function()
+        __OldNotification(self, nextCfg)
+      end)
+      task.wait(0.15)
+    end
+    __NotifyBusy = false
+  end)
+end
+
+-- Window wrapper: tags windows, adds intro animation, auto keybind, mobile scale.
+local __OldCreateWindow = Speed_Library.CreateWindow
+function Speed_Library:CreateWindow(Config)
+  Config = Config or {}
+  local size = Config.SizeUi or Config[4] or UDim2.fromOffset(550, 315)
+
+  if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+    Config.SizeUi = Config.MobileSizeUi or UDim2.fromOffset(
+      math.min(520, workspace.CurrentCamera.ViewportSize.X - 22),
+      math.min(360, workspace.CurrentCamera.ViewportSize.Y - 80)
+    )
+    Config[4] = Config.SizeUi
+  else
+    Config.SizeUi = size
+    Config[4] = size
+  end
+
+  local before = {}
+  local parent = RunService:IsStudio() and Player.PlayerGui or (gethui and gethui() or game:GetService("CoreGui"))
+  for _, child in ipairs(parent:GetChildren()) do before[child] = true end
+
+  local tabs = __OldCreateWindow(self, Config)
+
+  for _, child in ipairs(parent:GetChildren()) do
+    if not before[child] and child:IsA("ScreenGui") then
+      child.Name = "DocaV1_AnimatedWindow"
+      child.ResetOnSpawn = false
+      child.IgnoreGuiInset = true
+      table.insert(__DocaWindows, child)
+      Speed_Library:BindToggleKey(child, Config.ToggleKey or Speed_Library.Config.ToggleKey)
+
+      for _, obj in ipairs(child:GetDescendants()) do
+        if obj.Name == "DropShadowHolder" and obj:IsA("Frame") then
+          local originalSize = obj.Size
+          obj.Size = UDim2.fromOffset(0, 0)
+          obj.BackgroundTransparency = 1
+          Speed_Library:Tween(obj, TweenInfo.new(0.36, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = originalSize})
+        elseif obj:IsA("TextButton") or obj:IsA("ImageButton") then
+          Speed_Library:AddHover(obj, {BackgroundTransparency = obj.BackgroundTransparency}, {BackgroundTransparency = math.clamp(obj.BackgroundTransparency - 0.04, 0, 1)})
+        end
+      end
+    end
+  end
+
+  return tabs
+end
+
+-- Utility: create small animated status pill anywhere.
+function Speed_Library:CreateStatusPill(parent, text, color)
+  local pill = Custom:Create("TextLabel", {
+    BackgroundColor3 = color or Custom.ColorRGB,
+    BackgroundTransparency = 0.15,
+    Text = text or "ON",
+    TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamBold,
+    TextSize = 11,
+    Size = UDim2.fromOffset(48, 20),
+    BorderSizePixel = 0
+  }, parent)
+  Custom:Create("UICorner", {CornerRadius = UDim.new(0, 10)}, pill)
+  task.spawn(function()
+    while pill and pill.Parent and not Speed_Library.Unloaded do
+      Speed_Library:Tween(pill, TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.35})
+      task.wait(0.55)
+      Speed_Library:Tween(pill, TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.12})
+      task.wait(0.55)
+    end
+  end)
+  return pill
+end
+
+-- Utility: smooth color pulse for accent elements.
+function Speed_Library:Pulse(object, colorA, colorB, time)
+  if not object then return end
+  time = time or 0.75
+  task.spawn(function()
+    local flip = false
+    while object and object.Parent and not Speed_Library.Unloaded do
+      flip = not flip
+      local target = flip and (colorA or Custom.ColorRGB) or (colorB or Color3.fromRGB(255,255,255))
+      local prop = object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") and "TextColor3" or "BackgroundColor3"
+      pcall(function()
+        Speed_Library:Tween(object, TweenInfo.new(time, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {[prop] = target})
+      end)
+      task.wait(time)
+    end
+  end)
+end
+
+-- Extra aliases for easier use.
+function Speed_Library:DisableAnimations()
+  Speed_Library.Config.Animations = false
+end
+
+function Speed_Library:EnableAnimations()
+  Speed_Library.Config.Animations = true
+end
+
+function Speed_Library:SetAnimationSpeed(speed)
+  Speed_Library.Config.AnimationSpeed = tonumber(speed) or 1
+end
+
 
 return Speed_Library
