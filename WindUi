@@ -3844,4 +3844,15 @@ Library:InstallPhotoMatchOnGui(YourGuiOrFrame, {
 })
 ]]
 
+
+--// AUTO START: this version actually shows the new photo UI immediately after execute
+task.defer(function()
+  pcall(function()
+    Speed_Library:CreatePhotoMatchShowcase({
+      RainbowSpeed = 0.22,
+      BackgroundParticles = 90
+    })
+  end)
+end)
+
 return Speed_Library
