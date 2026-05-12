@@ -18,7 +18,7 @@
 --// =========================================================
 
 local ui_options = {
-	main_color = Color3.fromRGB(41, 74, 122),
+	main_color = Color3.fromRGB(255, 35, 75),
 	min_size = Vector2.new(420, 320),
 	toggle_key = Enum.KeyCode.RightShift,
 	can_resize = true,
@@ -56,14 +56,14 @@ windowsFrame.Size = UDim2.new(1, -40, 1, -40)
 windowsFrame.Parent = root
 
 local Theme = {
-	Bg = Color3.fromRGB(21, 22, 26),
-	Bg2 = Color3.fromRGB(28, 30, 36),
-	Bg3 = Color3.fromRGB(35, 38, 46),
+	Bg = Color3.fromRGB(10, 10, 12),
+	Bg2 = Color3.fromRGB(16, 16, 20),
+	Bg3 = Color3.fromRGB(24, 24, 30),
 	Text = Color3.fromRGB(235, 238, 245),
 	Muted = Color3.fromRGB(165, 170, 185),
-	Line = Color3.fromRGB(55, 60, 72),
+	Line = Color3.fromRGB(75, 22, 32),
 	White = Color3.fromRGB(255, 255, 255),
-	Green = Color3.fromRGB(70, 220, 140),
+	Green = Color3.fromRGB(255, 85, 115),
 	Red = Color3.fromRGB(255, 70, 105),
 }
 
@@ -419,7 +419,7 @@ function library:AddWindow(title, options)
 		for _, t in ipairs(window_data.Tabs) do
 			local active = t == tabData
 			t.Page.Visible = active
-			t.Button.BackgroundColor3 = active and Color3.fromRGB(48, 51, 60) or Color3.fromRGB(38, 40, 48)
+			t.Button.BackgroundColor3 = active and Color3.fromRGB(48, 51, 60) or Color3.fromRGB(20, 20, 24)
 			t.Button.TextColor3 = active and Theme.White or Theme.Muted
 		end
 	end
@@ -447,7 +447,7 @@ function library:AddWindow(title, options)
 
 		local tabButton = Instance.new("TextButton")
 		tabButton.Name = tab_name .. "_TabButton"
-		tabButton.BackgroundColor3 = Color3.fromRGB(38, 40, 48)
+		tabButton.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 		tabButton.BorderSizePixel = 0
 		tabButton.Size = UDim2.new(0, math.max(68, textWidth(tab_name, 14) + 24), 0, 20)
 		tabButton.Font = Enum.Font.GothamSemibold
@@ -481,13 +481,13 @@ function library:AddWindow(title, options)
 
 		tabButton.MouseEnter:Connect(function()
 			if not page.Visible then
-				tween(tabButton, {BackgroundColor3 = Color3.fromRGB(45, 48, 56)}, tweenTime)
+				tween(tabButton, {BackgroundColor3 = Color3.fromRGB(35, 18, 24)}, tweenTime)
 			end
 		end)
 
 		tabButton.MouseLeave:Connect(function()
 			if not page.Visible then
-				tween(tabButton, {BackgroundColor3 = Color3.fromRGB(38, 40, 48)}, tweenTime)
+				tween(tabButton, {BackgroundColor3 = Color3.fromRGB(20, 20, 24)}, tweenTime)
 			end
 		end)
 
@@ -560,7 +560,7 @@ function library:AddWindow(title, options)
 			row.Size = UDim2.new(0, math.max(150, textWidth(switch_text, 14) + 60), 0, 28)
 
 			local box = Instance.new("TextButton")
-			box.BackgroundColor3 = Color3.fromRGB(47, 50, 58)
+			box.BackgroundColor3 = Color3.fromRGB(28, 18, 22)
 			box.BorderSizePixel = 0
 			box.Position = UDim2.new(0, 5, 0.5, -9)
 			box.Size = UDim2.new(0, 18, 0, 18)
@@ -591,7 +591,7 @@ function library:AddWindow(title, options)
 			function switch_data:Set(bool)
 				toggled = bool == true
 				box.Text = toggled and "✓" or ""
-				tween(box, {BackgroundColor3 = toggled and mainColor or Color3.fromRGB(47, 50, 58)}, tweenTime)
+				tween(box, {BackgroundColor3 = toggled and mainColor or Color3.fromRGB(28, 18, 22)}, tweenTime)
 				pcall(callback, toggled)
 			end
 
@@ -762,7 +762,7 @@ function library:AddWindow(title, options)
 			bind.AnchorPoint = Vector2.new(1, 0.5)
 			bind.Position = UDim2.new(1, -5, 0.5, 0)
 			bind.Size = UDim2.new(0, 80, 0, 20)
-			bind.BackgroundColor3 = Color3.fromRGB(47, 50, 58)
+			bind.BackgroundColor3 = Color3.fromRGB(28, 18, 22)
 			bind.BorderSizePixel = 0
 			bind.Font = Enum.Font.GothamBold
 			bind.Text = current.Name
